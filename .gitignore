@@ -1,0 +1,35 @@
+evxl_chunks/
+.DS_Store
+Thumbs.db
+node_modules/
+.npm-cache/
+.tools/
+dist/
+
+# Local project materials
+docs/
+PROJECT_HANDOFF.md
+tracker-preview.png
+tracker-v2-preview.png
+tmp/
+
+# Personal data and exports
+stats/
+local-data/
+personal-data/
+backups/
+*.csv
+*.tsv
+*.db
+*.sqlite
+*.sqlite3
+kovaak-benchmark-tracker-*.json
+kovaak-tracker-*.json
+
+# Local configuration and generated files
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.cache/

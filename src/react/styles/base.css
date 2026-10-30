@@ -1,0 +1,29 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 0%, var(--color-page-glow), transparent 28rem),
+    linear-gradient(180deg, var(--color-page-gradient-start) 0%, var(--color-bg-canvas) 34rem);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
