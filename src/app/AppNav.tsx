@@ -1,3 +1,4 @@
+import { sourceLabel } from "../ui/format.ts";
 import type { ReactNode } from "react";
 import type { TrackerSnapshot } from "../data/trackerData.ts";
 import type { RankView } from "../domain/screens/shared.ts";
@@ -121,7 +122,7 @@ export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
         </div>
         <span className="small muted">
           上次导入 {snapshot.lastImportAt ?? "—"}
-          {snapshot.source === "fixture" ? " · 示例数据" : ""}
+          {sourceLabel(snapshot.source)}
         </span>
       </div>
     </nav>

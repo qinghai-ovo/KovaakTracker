@@ -4,7 +4,7 @@ import type { ScoreRecord } from "../../domain/types.ts";
 import type { TrackerSnapshot } from "../../data/trackerData.ts";
 import { useRankStyles, useSnapshot, useTrackerData } from "../../app/data.tsx";
 import { Segmented } from "../../ui/Controls.tsx";
-import { fmtClock, shortScenarioName } from "../../ui/format.ts";
+import { fmtClock, fmtMonthDay, shortScenarioName, sourceLabel } from "../../ui/format.ts";
 import { rankStyleAt } from "../../ui/rankStyle.ts";
 import "./data.css";
 
@@ -80,7 +80,7 @@ export function DataScreen() {
           </span>
           <span className="small muted">
             {snapshot.watching ? "正在监听" : "未在监听"} · {snapshot.preferences.autoImport ? "新成绩自动导入" : "自动导入已关闭"}
-            {snapshot.source === "fixture" ? " · 示例数据" : ""}
+            {sourceLabel(snapshot.source)}
           </span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -210,7 +210,7 @@ function RecordRow({ row, name, rankInk, onToggle, onEdit }: { row: DataRecordVi
   return (
     <tr className={row.counts ? undefined : "is-off"}>
       <td className="mono nowrap">
-        {row.date.slice(5, 10)} {fmtClock(row.date)}
+        {fmtMonthDay(row.date)} {fmtClock(row.date)}
       </td>
       <td>
         <span className="data-table__name" title={row.record.note || undefined}>
@@ -243,7 +243,7 @@ function ManualRunForm({ snapshot, editing, onDone }: { snapshot: TrackerSnapsho
   const scenarios = snapshot.benchmark.scenarios;
   const [scenario, setScenario] = useState(editing?.scenario ?? scenarios[0]?.name ?? "");
   const [score, setScore] = useState(editing ? String(editing.score) : "");
-  const [date, setDate] = useState((editing?.date ?? toLocalInput(snapshot.now)).slice(0, 16));
+  const [date, setDate] = useState(toLocalInput(editing ? new Date(editing.date) : snapshot.now));
   const [note, setNote] = useState(editing?.note ?? "");
   const value = Number(score);
   const valid = Boolean(scenario) && score.trim() !== "" && Number.isFinite(value) && value >= 0 && Boolean(date);

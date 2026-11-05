@@ -58,6 +58,10 @@
 .btn-secondary:disabled, .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-link { color: var(--accent); font-size: 13px; font-weight: 500; }
 
+.data-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; padding: 18px 22px; border-radius: 16px; background: var(--accent-tint); border: 1px solid rgba(14, 116, 144, 0.2); }
+a.btn-primary, a.btn-secondary { text-decoration: none; }
+a.btn-primary:hover { color: #fff; }
+
 /* ---- Form controls ----------------------------------------------------- */
 .segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: #e9edf3; }
 .segmented__item { min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; }

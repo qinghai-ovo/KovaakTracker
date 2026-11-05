@@ -6,7 +6,7 @@ import type { SetupProfile } from "../../domain/types.ts";
 import { useSnapshot, useTrackerData } from "../../app/data.tsx";
 import { routeHref } from "../../app/router.ts";
 import { Segmented, SettingRow, Switch, TextField } from "../../ui/Controls.tsx";
-import { fmtClock } from "../../ui/format.ts";
+import { fmtDateTime } from "../../ui/format.ts";
 import "./settings.css";
 
 const DESKTOP_ONLY = "桌面版（阶段 1）提供";
@@ -15,7 +15,9 @@ export function SettingsScreen() {
   const data = useTrackerData();
   const snapshot = useSnapshot();
   const { settings, preferences, setup, benchmark } = snapshot;
-  const isDemo = snapshot.source === "fixture";
+  // Benchmark switching, folder changes and syncing need the desktop backend (or the classic app for now).
+  const isDemo = snapshot.source !== "tauri";
+  const switchHint = snapshot.source === "browser" ? "目前在旧界面里切换 benchmark" : "示例数据只有一个 benchmark";
 
   const setupFields: Array<[keyof SetupProfile, string, string]> = [
     ["mouse", "鼠标", "你的鼠标型号"],
@@ -37,7 +39,7 @@ export function SettingsScreen() {
       <div className="settings-grid">
         <SettingsSection title="Benchmark">
           <SettingRow label="Benchmark" help="决定场景列表、分类和段位线" htmlFor="benchmark-select">
-            <select id="benchmark-select" className="select" style={{ minWidth: 220 }} value={benchmark.name} disabled={isDemo} title={isDemo ? "示例数据只有一个 benchmark" : undefined} onChange={() => undefined}>
+            <select id="benchmark-select" className="select" style={{ minWidth: 220 }} value={benchmark.name} disabled={isDemo} title={isDemo ? switchHint : undefined} onChange={() => undefined}>
               <option>{benchmark.name}</option>
             </select>
           </SettingRow>
@@ -46,7 +48,7 @@ export function SettingsScreen() {
           </SettingRow>
           <SettingRow
             label="段位线"
-            help={`${benchmark.syncedAt ? `${benchmark.syncedAt.slice(5, 10).replace("-", "月")}日 ${fmtClock(benchmark.syncedAt)} 同步` : "还没同步"} · ${benchmark.scenarios.length} 个场景 · 离线时使用上次同步的数据`}
+            help={`${benchmark.syncedAt ? `${fmtDateTime(benchmark.syncedAt)} 同步` : "还没同步"} · ${benchmark.scenarios.length} 个场景 · 离线时使用上次同步的数据`}
           >
             <button type="button" className="btn-secondary" disabled={isDemo} title={isDemo ? DESKTOP_ONLY : undefined}>
               立即同步

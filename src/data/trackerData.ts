@@ -47,7 +47,8 @@ export interface FailedImport {
 
 /** Everything the screens need, as one immutable snapshot. */
 export interface TrackerSnapshot {
-  source: "fixture" | "tauri";
+  /** fixture: built-in sample data; browser: the classic app's saved data in this browser; tauri: desktop backend. */
+  source: "fixture" | "browser" | "tauri";
   benchmark: BenchmarkInfo;
   records: ScoreRecord[];
   exclusions: Record<string, RecordExclusion>;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { trainingDayKey } from "../../domain/day.ts";
 import { journalScreen, type HeatCell, type JournalBlock } from "../../domain/screens/journal.ts";
 import type { MoodKey, TrackerSnapshot } from "../../data/trackerData.ts";
 import { useRankStyles, useScreenInput, useSnapshot, useTrackerData } from "../../app/data.tsx";
@@ -66,8 +67,8 @@ export function JournalScreen({ dayParam }: { dayParam: string | null }) {
           {view.blocks.length ? (
             <ol className="timeline">
               <TimelineMarker time={view.firstRunAt} title="开始训练" meta="检测到第一个成绩文件" />
-              {view.blocks.map((block) => (
-                <TimelineBlock key={block.start} block={block} styles={styles} />
+              {view.blocks.map((block, index) => (
+                <TimelineBlock key={`${index}-${block.scenarioName}-${block.start}`} block={block} styles={styles} />
               ))}
               <TimelineMarker time={view.lastRunAt} title="结束" meta={`共 ${view.totals.minutes} 分钟`} />
             </ol>
@@ -236,7 +237,7 @@ function JournalTotal({ label, value, sub, accent = false }: { label: string; va
 
 function SetupCard({ snapshot, dayKey }: { snapshot: TrackerSnapshot; dayKey: string }) {
   // Settings recorded in that day's CSV files, when the parser found them.
-  const fromCsv = snapshot.records.find((record) => record.date.startsWith(dayKey) && record.metadata)?.metadata;
+  const fromCsv = snapshot.records.find((record) => record.metadata && trainingDayKey(record.date, snapshot.settings.dayStartHour) === dayKey)?.metadata;
   const setup = snapshot.setup;
   const values: Array<[string, string]> = [
     ["sens", fromCsv?.sensitivity !== undefined ? String(fromCsv.sensitivity) : setup.sensitivity],
