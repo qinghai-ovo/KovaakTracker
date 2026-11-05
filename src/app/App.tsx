@@ -1,8 +1,11 @@
 import { useMemo } from "react";
+import { DataScreen } from "../screens/data/DataScreen.tsx";
+import { JournalScreen } from "../screens/journal/JournalScreen.tsx";
 import { MapScreen } from "../screens/map/MapScreen.tsx";
-import { PlaceholderScreen } from "../screens/placeholder/PlaceholderScreen.tsx";
+import { SettingsScreen } from "../screens/settings/SettingsScreen.tsx";
 import { TodayScreen } from "../screens/today/TodayScreen.tsx";
 import { AppNav } from "./AppNav.tsx";
+import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { useMapView, useRankStyles, useScreenInput, useSnapshot } from "./data.tsx";
 import { useRoute } from "./router.ts";
 
@@ -18,20 +21,22 @@ export function App() {
       case "map":
         return <MapScreen selectedName={route.param} />;
       case "journal":
-        return <PlaceholderScreen title="训练日志" phase="阶段 4" description="16 周热力图、每天的时间线、心情和笔记，会在阶段 4 接入。" />;
+        return <JournalScreen dayParam={route.param} />;
       case "data":
-        return <PlaceholderScreen title="数据" phase="阶段 2" description="成绩记录、手动录入、未匹配场景和导入失败的文件，会在阶段 2 随 SQLite 一起接入。" />;
+        return <DataScreen />;
       case "settings":
-        return <PlaceholderScreen title="设置" phase="阶段 4" description="Benchmark、成绩来源、统计规则、设备配置和外观设置，会在阶段 4 接入。" />;
+        return <SettingsScreen />;
       default:
         return <TodayScreen initialScenario={route.param} />;
     }
   }, [route]);
 
   return (
-    <div className="app">
+    <div className={snapshot.preferences.showInRank ? "app" : "app hide-in-rank"}>
       <AppNav active={route.name} snapshot={snapshot} overall={mapView.overall} styles={styles} />
-      <main className="app__main">{screen}</main>
+      <main className="app__main">
+        <ErrorBoundary resetKey={`${route.name}/${route.param ?? ""}`}>{screen}</ErrorBoundary>
+      </main>
     </div>
   );
 }

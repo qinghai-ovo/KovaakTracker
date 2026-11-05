@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { StableWindow } from "../../domain/metrics.ts";
 import { trainingWeekRange } from "../../domain/day.ts";
 import { sameScenario } from "../../domain/scenario.ts";
@@ -71,12 +72,17 @@ export function MapScreen({ selectedName }: { selectedName: string | null }) {
 
 function Insights({ view, styles }: { view: ReturnType<typeof useMapView>; styles: RankStyle[] }) {
   const { weakestCategory, closestRankUp, coverage } = view.insights;
-  const items: Array<{ label: string; value: string; sub: string; color: string }> = [];
+  const items: Array<{ label: string; value: string; sub: ReactNode; color: string }> = [];
   if (weakestCategory) {
     items.push({
       label: "最弱分类",
       value: weakestCategory.name,
-      sub: `${weakestCategory.rank.name} 段内 ${fmtPercent(weakestCategory.rank.inRank)}`,
+      sub: (
+        <>
+          {weakestCategory.rank.name}
+          <span className="in-rank"> 段内 {fmtPercent(weakestCategory.rank.inRank)}</span>
+        </>
+      ),
       color: "var(--text)",
     });
   }
@@ -126,7 +132,7 @@ function CategoryColumn({ category, styles, selected }: { category: MapCategoryV
           <span className="display" style={{ fontSize: 22, color: rankStyle.ink }}>
             {category.rank.name}
           </span>
-          <span className="mono small muted">段内 {fmtPercent(category.rank.inRank)}</span>
+          <span className="mono small muted in-rank">段内 {fmtPercent(category.rank.inRank)}</span>
         </div>
         <div style={{ margin: "2px 0" }}>
           <RankPalette styles={styles} currentIndex={category.rank.index} ringGap="var(--bg)" />
@@ -169,7 +175,7 @@ function ScenarioRow({ scenario, styles, selected }: { scenario: MapScenarioView
       <span className="map-row__bottom mono">
         <span>
           PB {fmtScore(scenario.personalBest)}
-          {scenario.personalBest !== null ? ` · 段内 ${fmtPercent(scenario.rank.inRank)}` : ""}
+          {scenario.personalBest !== null ? <span className="in-rank"> · 段内 {fmtPercent(scenario.rank.inRank)}</span> : null}
         </span>
         <span style={{ display: "flex", gap: 10 }}>
           <span style={{ color: deltaColor(delta) }}>{!scenario.trained ? "本周未练" : delta === null ? "上周未练" : fmtSignedPercent(delta)}</span>
@@ -214,7 +220,11 @@ function ScenarioDetail({ scenario, styles, stableLabel, inPlan, onAddToPlan }: 
           <span style={{ color: rankStyle.ink, fontWeight: 600 }}>{scenario.rank.name}</span>
           {scenario.rank.next
             ? scenario.rank.index >= 0
-              ? ` · 段内 ${fmtPercent(scenario.rank.inRank)} · 再 ${fmtScore(scenario.rank.next.points)} 分升 ${scenario.rank.next.name}`
+              ? (
+                  <>
+                    <span className="in-rank"> · 段内 {fmtPercent(scenario.rank.inRank)}</span> · 再 {fmtScore(scenario.rank.next.points)} 分升 {scenario.rank.next.name}
+                  </>
+                )
               : ` · 再 ${fmtScore(scenario.rank.next.points)} 分达到 ${scenario.rank.next.name}`
             : " · 已达最高段位"}
         </span>

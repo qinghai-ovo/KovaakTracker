@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { suggestNextScenario, todayScreen, type TodayRunView, type TodayScenarioView, type TodayView } from "../../domain/screens/today.ts";
 import type { StableWindow } from "../../domain/metrics.ts";
+import { trainingMinutes } from "../../domain/screens/journal.ts";
 import { rankIndexForScore } from "../../domain/rank.ts";
 import { sameScenario } from "../../domain/scenario.ts";
 import { useScreenInput, useSnapshot, useTrackerData, useRankStyles } from "../../app/data.tsx";
@@ -11,11 +12,8 @@ import "./today.css";
 
 const STABLE_LABEL: Record<StableWindow, string> = { last10: "近 10 局", last20: "近 20 局", week: "本周均分" };
 
-function trainingMinutes(view: TodayView): number {
-  if (!view.feed.length) return 0;
-  const times = view.feed.map((run) => new Date(run.date).getTime());
-  // Span from the first to the last run, plus roughly one run's length.
-  return Math.round((Math.max(...times) - Math.min(...times)) / 60000) + 2;
+function sessionMinutes(view: TodayView): number {
+  return trainingMinutes(view.feed.map((run) => run.date));
 }
 
 export function TodayScreen({ initialScenario }: { initialScenario: string | null }) {
@@ -66,7 +64,7 @@ export function TodayScreen({ initialScenario }: { initialScenario: string | nul
         </div>
         <div className="today-headstats">
           <HeadStat value={view.totals.countedRuns} label="局" />
-          <HeadStat value={trainingMinutes(view)} label="分钟" />
+          <HeadStat value={sessionMinutes(view)} label="分钟" />
           <HeadStat value={view.totals.newPersonalBests} label="个新纪录" />
         </div>
       </header>
@@ -123,11 +121,15 @@ function HeadStat({ value, label }: { value: number; label: string }) {
   );
 }
 
-function nextRankText(scenario: TodayScenarioView): string {
+function nextRankText(scenario: TodayScenarioView): ReactNode {
   const { rank } = scenario;
   if (!rank.next) return "已达最高段位";
   if (rank.index < 0) return `再 ${fmtScore(rank.next.points)} 分达到 ${rank.next.name}`;
-  return `段内 ${fmtPercent(rank.inRank)} · 再 ${fmtScore(rank.next.points)} 分升 ${rank.next.name}`;
+  return (
+    <>
+      <span className="in-rank">段内 {fmtPercent(rank.inRank)} · </span>再 {fmtScore(rank.next.points)} 分升 {rank.next.name}
+    </>
+  );
 }
 
 function ScenarioHero({ scenario, styles, stableWindow }: { scenario: TodayScenarioView; styles: RankStyle[]; stableWindow: StableWindow }) {
@@ -362,7 +364,7 @@ function SuggestionCard({ scenario, styles, onPick }: { scenario: TodayScenarioV
       </span>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#2B4A53" }}>
         今天 {scenario.countedRuns}/{scenario.targetRuns} 局，<span style={{ color: style.ink, fontWeight: 600 }}>{scenario.rank.name}</span>
-        {scenario.rank.index >= 0 ? ` 段内 ${fmtPercent(scenario.rank.inRank)}` : ""}，是计划里段位最低的。
+        {scenario.rank.index >= 0 ? <span className="in-rank"> 段内 {fmtPercent(scenario.rank.inRank)}</span> : null}，是计划里段位最低的。
       </p>
       <button className="btn-primary" onClick={onPick}>
         切换到这个场景

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { mapScreen, type MapView } from "../domain/screens/map.ts";
 import type { ScreenInput } from "../domain/screens/shared.ts";
-import { sameScenario } from "../domain/scenario.ts";
+import { resolveScenarioName } from "../domain/screens/data.ts";
 import type { TrackerData, TrackerSnapshot } from "../data/trackerData.ts";
 import { rankStyles, type RankStyle } from "../ui/rankStyle.ts";
 
@@ -25,12 +25,16 @@ export function useSnapshot(): TrackerSnapshot {
 /** Inputs shared by every screen function, rebuilt only when the snapshot changes. */
 export function useScreenInput(snapshot: TrackerSnapshot): ScreenInput {
   return useMemo(() => {
+    // Group runs by benchmark scenario once; confirmed aliases count toward their scenario.
     const byScenario = new Map<string, TrackerSnapshot["records"]>();
-    snapshot.benchmark.scenarios.forEach((scenario) => {
-      byScenario.set(
-        scenario.name,
-        snapshot.records.filter((record) => sameScenario(record.scenario, scenario.name)),
-      );
+    const resolved = new Map<string, string | null>();
+    snapshot.records.forEach((record) => {
+      if (!resolved.has(record.scenario)) resolved.set(record.scenario, resolveScenarioName(record.scenario, snapshot.benchmark.scenarios, snapshot.aliases));
+      const name = resolved.get(record.scenario);
+      if (!name) return;
+      const list = byScenario.get(name);
+      if (list) list.push(record);
+      else byScenario.set(name, [record]);
     });
     return {
       scenarios: snapshot.benchmark.scenarios,

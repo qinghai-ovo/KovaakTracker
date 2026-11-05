@@ -37,3 +37,8 @@ export function fmtShortDay(dayKey: string): string {
 export function fmtClock(localIso: string): string {
   return localIso.slice(11, 16);
 }
+
+/** "VT Smoothbot Arm Easy" → "Smoothbot Arm" (only when the user turned on short names). */
+export function shortScenarioName(name: string): string {
+  return name.replace(/^VT\s+/i, "").replace(/\s+(Easier|Easy|Medium|Hard|Harder)$/i, "").trim() || name;
+}
