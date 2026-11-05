@@ -7,7 +7,7 @@ import {
   rankIndexForScore,
   rankPositionFromProgress,
 } from "../../src/domain/rank.ts";
-import { sampleThresholds } from "../fixtures/design.ts";
+import { sampleThresholds } from "../../src/data/fixtures/designSample.ts";
 
 const th = sampleThresholds(2000); // [2000, 2240, 2480, 2720, 2960, 3200, 3440, 3680, 3920]
 

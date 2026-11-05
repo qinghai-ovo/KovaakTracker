@@ -22,7 +22,8 @@ export interface CsvMetadata {
 
 export interface RecordExclusion {
   recordKey: string;
-  status: "excluded" | "suspicious";
+  /** excluded: left out; suspicious: flagged by the low-score rule; kept: the user confirmed a flagged run is valid. */
+  status: "excluded" | "suspicious" | "kept";
   reason: "zero-score" | "low-vs-median" | "manual";
   note?: string;
   updatedAt: string;

@@ -1,5 +1,5 @@
 import { categoryRankPosition, overallRankPosition } from "../category.ts";
-import { weekComparison, type WeekComparison } from "../metrics.ts";
+import { weekComparison, weeklyAverages, type WeekComparison } from "../metrics.ts";
 import { average } from "../stats.ts";
 import { rankNames, rankViewFromProgress, resolveSettings, scenarioSnapshot, type RankView, type ScreenInput } from "./shared.ts";
 
@@ -14,6 +14,10 @@ export interface MapScenarioView {
   stable: number | null;
   stableProgress: number | null;
   week: WeekComparison;
+  /** Average score of the last 6 training weeks, oldest first. */
+  weeklyAverages: Array<number | null>;
+  /** Counted runs of all time. */
+  totalRuns: number;
   /** Trained this week. */
   trained: boolean;
 }
@@ -73,6 +77,8 @@ export function mapScreen(input: ScreenInput): MapView {
       stable: snapshot.stable,
       stableProgress: snapshot.stableProgress,
       week,
+      weeklyAverages: weeklyAverages(snapshot.counted, 6, { now: input.now, dayStartHour: settings.dayStartHour }),
+      totalRuns: snapshot.counted.length,
       trained: week.currentRuns > 0,
     };
   });

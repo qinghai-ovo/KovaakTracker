@@ -51,7 +51,7 @@ function normalizeRecordExclusions(value: Record<string, Partial<RecordExclusion
   const source = value || {};
   return Object.fromEntries(
     Object.entries(source)
-      .filter(([, item]) => item?.recordKey && (item.status === "excluded" || item.status === "suspicious"))
+      .filter(([, item]) => item?.recordKey && (item.status === "excluded" || item.status === "suspicious" || item.status === "kept"))
       .map(([key, item]) => [
         key,
         {

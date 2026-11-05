@@ -1,5 +1,5 @@
 // Sample data from the v2 design canvas (Today / Map screens), turned into real records.
-import type { BenchmarkScenario, ScoreRecord } from "../../src/domain/types.ts";
+import type { BenchmarkScenario, ScoreRecord } from "../../domain/types.ts";
 
 export const rankColors: Record<string, string> = {
   Lemming: "#C5C3F2",
@@ -109,4 +109,21 @@ export function mapFixture() {
 
 export function recordsLookup(records: ScoreRecord[]) {
   return (scenarioName: string) => records.filter((record) => record.scenario === scenarioName);
+}
+
+// ---- Whole demo library -------------------------------------------------
+
+/**
+ * One consistent library for the demo app: all 16 Map scenarios, where the six Today plan
+ * scenarios use their run-by-run history and the rest use the Map weekly summary.
+ */
+export function demoDataset() {
+  const map = mapFixture();
+  const today = todayFixture();
+  const planNames = new Set(today.plan.map((item) => item.scenarioName));
+  return {
+    scenarios: map.scenarios,
+    records: [...map.records.filter((record) => !planNames.has(record.scenario)), ...today.records],
+    plan: today.plan,
+  };
 }

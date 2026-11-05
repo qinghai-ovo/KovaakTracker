@@ -23,6 +23,7 @@ export default defineConfig({
       input: {
         index: "index.html",
         react: "react.html",
+        app: "app.html",
       },
     },
   },

@@ -1,0 +1,48 @@
+.today-headstats { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.today-grid { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.today-grid__main { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.today-grid__side { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+.today-hero { padding: 28px 30px 26px; gap: 26px; }
+.today-hero__top { position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.today-hero__rank { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.today-hero__numbers { position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 28px 40px; }
+.today-hero__big { font-family: var(--font-display); font-weight: 600; font-size: 84px; line-height: 0.95; letter-spacing: -0.04em; }
+.today-hero__mini { display: flex; flex-wrap: wrap; padding-bottom: 6px; }
+.today-mini { display: flex; flex-direction: column; gap: 4px; padding: 0 22px; border-left: 1px solid var(--line-strong); }
+.today-hero__names { display: flex; gap: 3px; }
+.today-hero__name { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 560px) {
+  .today-hero { padding: 22px 18px; }
+  .today-hero__big { font-size: 60px; }
+  .today-hero__rank { align-items: flex-start; text-align: left; }
+  .today-hero__names span:first-child { font-size: 9px !important; }
+}
+
+.runs-chart { position: relative; height: 210px; display: flex; gap: 8px; padding: 0 70px 0 4px; border-bottom: 1px solid var(--line-strong); }
+.runs-chart__line { position: absolute; left: 0; right: 0; border-top: 1px dashed; opacity: 0.7; }
+.runs-chart__line-label { position: absolute; right: 0; margin-bottom: 4px; font-size: 11px; }
+.runs-chart__bar { position: relative; flex: 1 1 0; max-width: 56px; height: 100%; border-radius: 8px; }
+.runs-chart__bar:hover { background: var(--surface-muted); }
+.runs-chart__stem { position: absolute; left: 50%; bottom: 0; width: 2px; margin-left: -1px; }
+.runs-chart__dot { position: absolute; left: 50%; width: 14px; height: 14px; margin-left: -7px; margin-bottom: -7px; border-radius: 50%; border: 2px solid; }
+.runs-chart__labels { display: flex; gap: 8px; padding: 0 70px 0 4px; }
+.runs-chart__label { flex: 1 1 0; max-width: 56px; display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; }
+.empty-box { min-height: 150px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; border: 1px dashed var(--line-strong); border-radius: 14px; }
+
+.plan-card { padding: 20px 16px 16px; gap: 6px; }
+.plan-item { display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 6px 8px; border-radius: 12px; border: 1px solid transparent; }
+.plan-item:hover { background: var(--surface-muted); }
+.plan-item.is-selected { background: rgba(14, 116, 144, 0.06); border-color: rgba(14, 116, 144, 0.35); }
+.plan-item__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.plan-item__name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plan-simulate { margin-top: 8px; min-height: 48px; border-radius: 12px; border: 1px dashed rgba(14, 116, 144, 0.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; }
+.plan-simulate:hover { background: var(--accent-soft); }
+
+.suggestion-card { background: var(--accent-tint); border: 1px solid rgba(14, 116, 144, 0.18); padding: 20px 22px; gap: 10px; }
+
+.feed-row { display: flex; align-items: center; gap: 12px; min-height: 34px; border-bottom: 1px solid rgba(15, 22, 38, 0.06); }
+.feed-row__dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.feed-row__name { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-row__tag { min-width: 36px; text-align: center; padding: 1px 6px; border-radius: 5px; font-size: 10px; font-weight: 600; }
