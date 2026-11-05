@@ -18,7 +18,7 @@ export function rankForScore(score: number | null, thresholds: number[], rankCol
 
 export function progressPercentForScore(score: number | null, thresholds: number[]): number {
   if (score === null || Number.isNaN(score) || !thresholds.length) return 0;
-  if (score < thresholds[0]) return Math.max(0, Math.min(100, (score / thresholds[0]) * 100));
+  if (score < thresholds[0]) return (Math.max(0, Math.min(1, score / thresholds[0])) / thresholds.length) * 100;
   for (let index = 1; index < thresholds.length; index += 1) {
     if (score <= thresholds[index]) {
       const start = thresholds[index - 1];

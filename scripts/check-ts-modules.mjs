@@ -50,6 +50,38 @@ assert.deepEqual(rank.rankForScore(220, [100, 200, 300], { Bronze: "#a", Silver:
   color: "#b",
 });
 
+const progressThresholds = [100, 200, 300, 400];
+assert.equal(rank.progressPercentForScore(null, progressThresholds), 0);
+assert.equal(rank.progressPercentForScore(100, []), 0);
+assert.equal(rank.progressPercentForScore(0, progressThresholds), 0);
+assert.equal(rank.progressPercentForScore(50, progressThresholds), 12.5);
+assert.equal(rank.progressPercentForScore(99, progressThresholds), 24.75);
+assert.equal(rank.progressPercentForScore(100, progressThresholds), 25);
+assert.equal(rank.progressPercentForScore(150, progressThresholds), 37.5);
+assert.equal(rank.progressPercentForScore(400, progressThresholds), 100);
+assert.equal(rank.progressPercentForScore(500, progressThresholds), 100);
+for (let score = 1; score <= 500; score += 1) {
+  const progress = rank.progressPercentForScore(score, progressThresholds);
+  assert.ok(progress >= rank.progressPercentForScore(score - 1, progressThresholds), `progress should not drop at score ${score}`);
+  const segmentAverage = progressThresholds.reduce((total, _, index) => total + rank.rankSegmentFill(score, progressThresholds, index), 0) / progressThresholds.length;
+  assert.ok(Math.abs(progress - segmentAverage) < 1e-9, `progress should match rank segment fill at score ${score}`);
+}
+
+const firstRankPerformance = dailyReview.buildDailyReviewPerformanceRankings({
+  dateKey: "2026-05-21",
+  scenarios: [{ name: "First Rank", rankMaxes: progressThresholds }],
+  sessions: new Map([
+    [
+      "First Rank",
+      [
+        { dateKey: "2026-05-21", count: 1, avg: 100, best: 100, worst: 100, median: 100 },
+        { dateKey: "2026-05-20", count: 1, avg: 99, best: 99, worst: 99, median: 99 },
+      ],
+    ],
+  ]),
+});
+assert.ok(firstRankPerformance.items[0].progressDelta > 0, "reaching the first rank should count as improvement over a score just below it");
+
 const sampleRecords = [
   { scenario: "VT Smoothbot", score: 100, date: "2026-05-21T01:00:00.000Z" },
   { scenario: "VT Smoothbot", score: 200, date: "2026-05-21T02:00:00.000Z" },
