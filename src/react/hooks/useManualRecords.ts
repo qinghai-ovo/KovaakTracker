@@ -1,6 +1,6 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { clearManualRecords, deleteManualRecord, upsertManualRecord, type ManualRecordFormData } from "../../core/manualRecords.ts";
-import type { AppState, ScoreRecord } from "../../core/types.ts";
+import { clearManualRecords, deleteManualRecord, upsertManualRecord, type ManualRecordFormData } from "../../domain/manualRecords.ts";
+import type { AppState, ScoreRecord } from "../../domain/types.ts";
 
 export function useManualRecords({
   setSelectedScenario,

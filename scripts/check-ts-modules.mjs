@@ -2,19 +2,19 @@
 
 import assert from "node:assert/strict";
 
-const stats = await import("../src/core/stats.ts");
-const scenario = await import("../src/core/scenario.ts");
-const csv = await import("../src/core/csv.ts");
-const rank = await import("../src/core/rank.ts");
-const dailyReview = await import("../src/core/dailyReview.ts");
-const weeklyReview = await import("../src/core/weeklyReview.ts");
-const exclusions = await import("../src/core/exclusions.ts");
-const reviewInputs = await import("../src/core/reviewInputs.ts");
-const records = await import("../src/core/records.ts");
-const storage = await import("../src/core/storage.ts");
-const manualRecords = await import("../src/core/manualRecords.ts");
-const selections = await import("../src/core/selections.ts");
-const benchmark = await import("../src/core/benchmark.ts");
+const stats = await import("../src/domain/stats.ts");
+const scenario = await import("../src/domain/scenario.ts");
+const csv = await import("../src/services/csv.ts");
+const rank = await import("../src/domain/rank.ts");
+const dailyReview = await import("../src/domain/dailyReview.ts");
+const weeklyReview = await import("../src/domain/weeklyReview.ts");
+const exclusions = await import("../src/domain/exclusions.ts");
+const reviewInputs = await import("../src/domain/reviewInputs.ts");
+const records = await import("../src/domain/records.ts");
+const storage = await import("../src/services/storage.ts");
+const manualRecords = await import("../src/domain/manualRecords.ts");
+const selections = await import("../src/react/app/selections.ts");
+const benchmark = await import("../src/services/benchmark.ts");
 const fileImport = await import("../src/services/fileImport.ts");
 const backup = await import("../src/services/backup.ts");
 const fallback = await import("../src/data/benchmarkFallback.ts");

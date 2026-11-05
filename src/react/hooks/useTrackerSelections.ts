@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { AppState } from "../../core/types.ts";
+import type { AppState } from "../../domain/types.ts";
 
 export type ChartRange = "month" | "week" | "recent10";
 

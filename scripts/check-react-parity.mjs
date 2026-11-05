@@ -11,14 +11,14 @@ import {
   buildDailySessionsByScenario,
   latestDailyReviewDate,
   stableMetricValue,
-} from "../src/core/dailyReview.ts";
-import { buildRecordExclusions, effectiveRecords, excludeRecordManually, recordKey } from "../src/core/exclusions.ts";
-import { inferTrainingTimeForDate } from "../src/core/reviewInputs.ts";
-import { buildRecordIndex, recordsForScenario, scopedRecords, unmatchedCsvScenarioCounts } from "../src/core/records.ts";
-import { rankForScore } from "../src/core/rank.ts";
-import { ensureSelectedScenario } from "../src/core/selections.ts";
-import { average, daysBetween } from "../src/core/stats.ts";
-import { loadState, saveState } from "../src/core/storage.ts";
+} from "../src/domain/dailyReview.ts";
+import { buildRecordExclusions, effectiveRecords, excludeRecordManually, recordKey } from "../src/domain/exclusions.ts";
+import { inferTrainingTimeForDate } from "../src/domain/reviewInputs.ts";
+import { buildRecordIndex, recordsForScenario, scopedRecords, unmatchedCsvScenarioCounts } from "../src/domain/records.ts";
+import { rankForScore } from "../src/domain/rank.ts";
+import { ensureSelectedScenario } from "../src/react/app/selections.ts";
+import { average, daysBetween } from "../src/domain/stats.ts";
+import { loadState, saveState } from "../src/services/storage.ts";
 
 class MemoryStorage {
   constructor(initial = {}) {

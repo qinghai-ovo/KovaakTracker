@@ -1,5 +1,5 @@
-import { flattenBenchmarkApiData, type BenchmarkApiData } from "../core/benchmark.ts";
-import type { Benchmark, BenchmarkScenario } from "../core/types.ts";
+import { flattenBenchmarkApiData, type BenchmarkApiData } from "../services/benchmark.ts";
+import type { Benchmark, BenchmarkScenario } from "../domain/types.ts";
 
 export async function fetchText(url: string, fetchImpl: typeof fetch = fetch): Promise<string> {
   const response = await fetchImpl(url, { cache: "no-store" });

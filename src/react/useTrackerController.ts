@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { benchmarkChanged, difficultyChanged, ensureSelectedScenario } from "../core/selections.ts";
-import { loadState, saveState } from "../core/storage.ts";
-import { buildRecordIndex, scopedRecords } from "../core/records.ts";
-import { buildRecordExclusions, effectiveRecords, excludeRecordManually, restoreRecordExclusion } from "../core/exclusions.ts";
-import { normalizeDailyReviewEntry, normalizeSetupOverride, normalizeSetupProfile } from "../core/reviewInputs.ts";
-import type { AppState, BenchmarkScenario, DailyReviewEntry, ScoreRecord, SetupProfile } from "../core/types.ts";
+import { benchmarkChanged, difficultyChanged, ensureSelectedScenario } from "./app/selections.ts";
+import { loadState, saveState } from "../services/storage.ts";
+import { buildRecordIndex, scopedRecords } from "../domain/records.ts";
+import { buildRecordExclusions, effectiveRecords, excludeRecordManually, restoreRecordExclusion } from "../domain/exclusions.ts";
+import { normalizeDailyReviewEntry, normalizeSetupOverride, normalizeSetupProfile } from "../domain/reviewInputs.ts";
+import type { AppState, BenchmarkScenario, DailyReviewEntry, ScoreRecord, SetupProfile } from "../domain/types.ts";
 import { benchmarkFallback } from "../data/benchmarkFallback.ts";
 import { useBackupActions } from "./hooks/useBackupActions.ts";
 import { useBenchmarkSync } from "./hooks/useBenchmarkSync.ts";

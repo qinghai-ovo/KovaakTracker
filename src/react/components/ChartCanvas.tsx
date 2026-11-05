@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { daysBetween } from "../../core/stats.ts";
-import type { ScoreRecord } from "../../core/types.ts";
-import { average } from "../../core/stats.ts";
+import { daysBetween } from "../../domain/stats.ts";
+import type { ScoreRecord } from "../../domain/types.ts";
+import { average } from "../../domain/stats.ts";
 import { formatNumber, shortDate } from "../format.ts";
 
 type ChartRange = "month" | "week" | "recent10";

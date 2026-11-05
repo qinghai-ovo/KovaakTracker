@@ -1,6 +1,6 @@
-import { parseKovaakCsvWithStatus, type ParseKovaakCsvOptions } from "../core/csv.ts";
-import { dedupeRecords } from "../core/stats.ts";
-import type { CsvImportStatus, ScoreRecord } from "../core/types.ts";
+import { parseKovaakCsvWithStatus, type ParseKovaakCsvOptions } from "../services/csv.ts";
+import { dedupeRecords } from "../domain/stats.ts";
+import type { CsvImportStatus, ScoreRecord } from "../domain/types.ts";
 
 export interface CsvReadableFile {
   name: string;

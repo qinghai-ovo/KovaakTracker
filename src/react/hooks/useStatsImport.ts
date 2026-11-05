@@ -1,7 +1,7 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import { findBenchmarkScenarioName as matchBenchmarkScenarioName } from "../../core/scenario.ts";
-import { loadHandle, saveHandle } from "../../core/storage.ts";
-import type { AppState, BenchmarkScenario } from "../../core/types.ts";
+import { findBenchmarkScenarioName as matchBenchmarkScenarioName } from "../../domain/scenario.ts";
+import { loadHandle, saveHandle } from "../../services/storage.ts";
+import type { AppState, BenchmarkScenario } from "../../domain/types.ts";
 import { filesFromStatsDirectory, mergeImportedCsvRecords, parseCsvFiles } from "../../services/fileImport.ts";
 
 const STATS_HANDLE_DB = "kovaak-benchmark-tracker-handles";

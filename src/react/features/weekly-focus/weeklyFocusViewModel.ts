@@ -1,6 +1,6 @@
-import { buildWeeklyReview, naturalWeekRange, previousWeekRange } from "../../../core/weeklyReview.ts";
-import { average, localDateKey } from "../../../core/stats.ts";
-import type { BenchmarkDifficulty, BenchmarkScenario, ScoreRecord } from "../../../core/types.ts";
+import { buildWeeklyReview, naturalWeekRange, previousWeekRange } from "../../../domain/weeklyReview.ts";
+import { average, localDateKey } from "../../../domain/stats.ts";
+import type { BenchmarkDifficulty, BenchmarkScenario, ScoreRecord } from "../../../domain/types.ts";
 import { formatNumber, formatSigned } from "../../format.ts";
 
 export interface WeeklyFocusItem {

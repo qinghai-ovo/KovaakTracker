@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { buildWeeklyReview, naturalWeekRange, previousWeekRange, weeklyReviewMarkdown, type WeekRange, type WeeklyCategorySummary } from "../../core/weeklyReview.ts";
-import type { BenchmarkDifficulty, BenchmarkScenario, ScoreRecord } from "../../core/types.ts";
+import { buildWeeklyReview, naturalWeekRange, previousWeekRange, weeklyReviewMarkdown, type WeekRange, type WeeklyCategorySummary } from "../../domain/weeklyReview.ts";
+import type { BenchmarkDifficulty, BenchmarkScenario, ScoreRecord } from "../../domain/types.ts";
 import { formatNumber, formatSigned } from "../format.ts";
 
 interface WeeklyReviewPanelProps {

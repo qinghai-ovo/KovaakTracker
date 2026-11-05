@@ -1,7 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { fromImportedState } from "../../core/selections.ts";
-import { normalizeState } from "../../core/storage.ts";
-import type { AppState } from "../../core/types.ts";
+import { fromImportedState } from "../app/selections.ts";
+import { normalizeState } from "../../services/storage.ts";
+import type { AppState } from "../../domain/types.ts";
 import { benchmarkFallback } from "../../data/benchmarkFallback.ts";
 import { exportJson, readJsonFile } from "../../services/backup.ts";
 

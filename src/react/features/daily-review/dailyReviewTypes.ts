@@ -1,4 +1,4 @@
-import type { BenchmarkScenario, DailySession, RecordExclusion, ScoreRecord } from "../../../core/types.ts";
+import type { BenchmarkScenario, DailySession, RecordExclusion, ScoreRecord } from "../../../domain/types.ts";
 
 export interface RankThresholdModel {
   color: string;

@@ -1,7 +1,7 @@
-import { recordsForScenario } from "../../core/records.ts";
-import { rankForScore } from "../../core/rank.ts";
-import { average } from "../../core/stats.ts";
-import type { BenchmarkDifficulty, BenchmarkScenario, RecordIndex } from "../../core/types.ts";
+import { recordsForScenario } from "../../domain/records.ts";
+import { rankForScore } from "../../domain/rank.ts";
+import { average } from "../../domain/stats.ts";
+import type { BenchmarkDifficulty, BenchmarkScenario, RecordIndex } from "../../domain/types.ts";
 import { formatNumber } from "../format.ts";
 
 interface ScenarioCardsProps {

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import { progressPercentForScore } from "../../core/rank.ts";
-import type { BenchmarkDifficulty, RankResult } from "../../core/types.ts";
+import { progressPercentForScore } from "../../domain/rank.ts";
+import type { BenchmarkDifficulty, RankResult } from "../../domain/types.ts";
 import { formatNumber } from "../format.ts";
 
 interface RankData {

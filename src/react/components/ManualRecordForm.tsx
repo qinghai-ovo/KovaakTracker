@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
-import type { BenchmarkScenario, ScoreRecord } from "../../core/types.ts";
+import type { BenchmarkScenario, ScoreRecord } from "../../domain/types.ts";
 import { toDateTimeInputValue } from "../format.ts";
 
 interface ManualRecordFormProps {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildDailySessionsByScenario, latestDailyReviewDate, trainingDateNavigation } from "../core/dailyReview.ts";
-import { recordsForScenario, unmatchedCsvScenarioCounts } from "../core/records.ts";
-import { localDateKey } from "../core/stats.ts";
-import type { ScoreRecord } from "../core/types.ts";
+import { buildDailySessionsByScenario, latestDailyReviewDate, trainingDateNavigation } from "../domain/dailyReview.ts";
+import { recordsForScenario, unmatchedCsvScenarioCounts } from "../domain/records.ts";
+import { localDateKey } from "../domain/stats.ts";
+import type { ScoreRecord } from "../domain/types.ts";
 import { AppShell } from "./app/AppShell.tsx";
 import { TopToolbar } from "./app/TopToolbar.tsx";
 import { ViewRouter } from "./app/ViewRouter.tsx";

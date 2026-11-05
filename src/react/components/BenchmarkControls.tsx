@@ -1,4 +1,4 @@
-import type { Benchmark, BenchmarkDifficulty, BenchmarkScenario } from "../../core/types.ts";
+import type { Benchmark, BenchmarkDifficulty, BenchmarkScenario } from "../../domain/types.ts";
 
 interface BenchmarkControlsProps {
   benchmarks: Benchmark[];
