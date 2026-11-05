@@ -1,4 +1,4 @@
-import type { Benchmark } from "../core/types.ts";
+import type { Benchmark } from "../domain/types.ts";
 
 export const benchmarkFallback: Benchmark[] = [
   {

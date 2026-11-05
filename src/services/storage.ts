@@ -1,7 +1,7 @@
 import { normalizeBenchmarkCategories } from "./benchmark.ts";
-import { buildRecordExclusions } from "./exclusions.ts";
-import { emptySetupProfile, normalizeDailyReviews, normalizeSetupProfile } from "./reviewInputs.ts";
-import type { AppState, Benchmark, DailyReviewTableSettings, RecordExclusion } from "./types.ts";
+import { buildRecordExclusions } from "../domain/exclusions.ts";
+import { emptySetupProfile, normalizeDailyReviews, normalizeSetupProfile } from "../domain/reviewInputs.ts";
+import type { AppState, Benchmark, DailyReviewTableSettings, RecordExclusion } from "../domain/types.ts";
 
 export const defaultDailyReviewTableSettings: DailyReviewTableSettings = {
   density: "compact",

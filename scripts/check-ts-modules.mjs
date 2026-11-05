@@ -2,19 +2,19 @@
 
 import assert from "node:assert/strict";
 
-const stats = await import("../src/core/stats.ts");
-const scenario = await import("../src/core/scenario.ts");
-const csv = await import("../src/core/csv.ts");
-const rank = await import("../src/core/rank.ts");
-const dailyReview = await import("../src/core/dailyReview.ts");
-const weeklyReview = await import("../src/core/weeklyReview.ts");
-const exclusions = await import("../src/core/exclusions.ts");
-const reviewInputs = await import("../src/core/reviewInputs.ts");
-const records = await import("../src/core/records.ts");
-const storage = await import("../src/core/storage.ts");
-const manualRecords = await import("../src/core/manualRecords.ts");
-const selections = await import("../src/core/selections.ts");
-const benchmark = await import("../src/core/benchmark.ts");
+const stats = await import("../src/domain/stats.ts");
+const scenario = await import("../src/domain/scenario.ts");
+const csv = await import("../src/services/csv.ts");
+const rank = await import("../src/domain/rank.ts");
+const dailyReview = await import("../src/domain/dailyReview.ts");
+const weeklyReview = await import("../src/domain/weeklyReview.ts");
+const exclusions = await import("../src/domain/exclusions.ts");
+const reviewInputs = await import("../src/domain/reviewInputs.ts");
+const records = await import("../src/domain/records.ts");
+const storage = await import("../src/services/storage.ts");
+const manualRecords = await import("../src/domain/manualRecords.ts");
+const selections = await import("../src/react/app/selections.ts");
+const benchmark = await import("../src/services/benchmark.ts");
 const fileImport = await import("../src/services/fileImport.ts");
 const backup = await import("../src/services/backup.ts");
 const fallback = await import("../src/data/benchmarkFallback.ts");
@@ -49,6 +49,38 @@ assert.deepEqual(rank.rankForScore(220, [100, 200, 300], { Bronze: "#a", Silver:
   next: { name: "Gold", need: 80 },
   color: "#b",
 });
+
+const progressThresholds = [100, 200, 300, 400];
+assert.equal(rank.progressPercentForScore(null, progressThresholds), 0);
+assert.equal(rank.progressPercentForScore(100, []), 0);
+assert.equal(rank.progressPercentForScore(0, progressThresholds), 0);
+assert.equal(rank.progressPercentForScore(50, progressThresholds), 12.5);
+assert.equal(rank.progressPercentForScore(99, progressThresholds), 24.75);
+assert.equal(rank.progressPercentForScore(100, progressThresholds), 25);
+assert.equal(rank.progressPercentForScore(150, progressThresholds), 37.5);
+assert.equal(rank.progressPercentForScore(400, progressThresholds), 100);
+assert.equal(rank.progressPercentForScore(500, progressThresholds), 100);
+for (let score = 1; score <= 500; score += 1) {
+  const progress = rank.progressPercentForScore(score, progressThresholds);
+  assert.ok(progress >= rank.progressPercentForScore(score - 1, progressThresholds), `progress should not drop at score ${score}`);
+  const segmentAverage = progressThresholds.reduce((total, _, index) => total + rank.rankSegmentFill(score, progressThresholds, index), 0) / progressThresholds.length;
+  assert.ok(Math.abs(progress - segmentAverage) < 1e-9, `progress should match rank segment fill at score ${score}`);
+}
+
+const firstRankPerformance = dailyReview.buildDailyReviewPerformanceRankings({
+  dateKey: "2026-05-21",
+  scenarios: [{ name: "First Rank", rankMaxes: progressThresholds }],
+  sessions: new Map([
+    [
+      "First Rank",
+      [
+        { dateKey: "2026-05-21", count: 1, avg: 100, best: 100, worst: 100, median: 100 },
+        { dateKey: "2026-05-20", count: 1, avg: 99, best: 99, worst: 99, median: 99 },
+      ],
+    ],
+  ]),
+});
+assert.ok(firstRankPerformance.items[0].progressDelta > 0, "reaching the first rank should count as improvement over a score just below it");
 
 const sampleRecords = [
   { scenario: "VT Smoothbot", score: 100, date: "2026-05-21T01:00:00.000Z" },

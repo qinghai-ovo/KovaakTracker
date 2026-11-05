@@ -1,7 +1,7 @@
-import { averageRecentDailySessions, averageRecentRuns, stableMetricLabel, type StableMetricKey } from "../../core/dailyReview.ts";
-import { average } from "../../core/stats.ts";
-import { rankForScore } from "../../core/rank.ts";
-import type { BenchmarkDifficulty, BenchmarkScenario, DailySession, RankResult, ScoreRecord } from "../../core/types.ts";
+import { averageRecentDailySessions, averageRecentRuns, stableMetricLabel, type StableMetricKey } from "../../domain/dailyReview.ts";
+import { average } from "../../domain/stats.ts";
+import { rankForScore } from "../../domain/rank.ts";
+import type { BenchmarkDifficulty, BenchmarkScenario, DailySession, RankResult, ScoreRecord } from "../../domain/types.ts";
 import { formatNumber } from "../format.ts";
 import { RankHeader, RankReference, rankReferenceData } from "./RankReference.tsx";
 

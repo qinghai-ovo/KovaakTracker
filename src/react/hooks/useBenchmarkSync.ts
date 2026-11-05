@@ -1,6 +1,6 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
-import { mergeBenchmarks } from "../../core/benchmark.ts";
-import type { AppState, Benchmark, BenchmarkDifficulty } from "../../core/types.ts";
+import { mergeBenchmarks } from "../../services/benchmark.ts";
+import type { AppState, Benchmark, BenchmarkDifficulty } from "../../domain/types.ts";
 import { fetchEvxlBenchmarks, fetchKovaakBenchmarkDetails } from "../../services/benchmarkSync.ts";
 import { browserFetch, LocalDevProxyUnavailableError } from "../../services/browserFetch.ts";
 import { benchmarkFallback } from "../../data/benchmarkFallback.ts";

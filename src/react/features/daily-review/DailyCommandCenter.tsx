@@ -1,4 +1,4 @@
-import type { BenchmarkDifficulty, BenchmarkScenario, DailyReviewEntry, DailyReviewTableSettings, DailySession, RecordExclusion, ScoreRecord, SetupProfile } from "../../../core/types.ts";
+import type { BenchmarkDifficulty, BenchmarkScenario, DailyReviewEntry, DailyReviewTableSettings, DailySession, RecordExclusion, ScoreRecord, SetupProfile } from "../../../domain/types.ts";
 import { DailyReviewSheet } from "./DailyReviewSheet.tsx";
 import { DailySummaryStrip } from "./DailySummaryStrip.tsx";
 import { buildDailyReviewRows, buildDailyReviewSummary } from "./dailyReviewViewModel.ts";

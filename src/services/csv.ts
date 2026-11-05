@@ -1,5 +1,5 @@
-import { normalizeScenarioName, scenarioFromFileName } from "./scenario.ts";
-import type { CsvParseResult, ScoreRecord } from "./types.ts";
+import { normalizeScenarioName, scenarioFromFileName } from "../domain/scenario.ts";
+import type { CsvParseResult, ScoreRecord } from "../domain/types.ts";
 
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

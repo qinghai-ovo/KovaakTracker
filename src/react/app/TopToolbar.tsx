@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Download, FolderOpen, PanelLeftClose, PanelRightClose, RefreshCw, Upload } from "lucide-react";
-import type { TrainingDateNavigation } from "../../core/dailyReview.ts";
-import type { Benchmark, BenchmarkDifficulty, BenchmarkScenario } from "../../core/types.ts";
+import type { TrainingDateNavigation } from "../../domain/dailyReview.ts";
+import type { Benchmark, BenchmarkDifficulty, BenchmarkScenario } from "../../domain/types.ts";
 import { FloatingTooltip } from "../ui/FloatingTooltip.tsx";
 import { IconButton } from "../ui/IconButton.tsx";
 import { SegmentedControl } from "../ui/SegmentedControl.tsx";

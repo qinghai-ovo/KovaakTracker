@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { Benchmark, BenchmarkDifficulty, BenchmarkScenario } from "../../../core/types.ts";
+import type { Benchmark, BenchmarkDifficulty, BenchmarkScenario } from "../../../domain/types.ts";
 import { BackupActions } from "../../components/BackupActions.tsx";
 import { ManualRecordForm, type ManualRecordFormHandle } from "../../components/ManualRecordForm.tsx";
 import { StatsImportPanel } from "../../components/StatsImportPanel.tsx";

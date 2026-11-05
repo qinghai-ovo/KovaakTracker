@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { recordKey } from "../../../core/exclusions.ts";
-import { dailyReviewTrendPoints, dailyReviewTrendValue } from "../../../core/dailyReview.ts";
-import { localDateKey } from "../../../core/stats.ts";
-import type { ScoreRecord } from "../../../core/types.ts";
+import { recordKey } from "../../../domain/exclusions.ts";
+import { dailyReviewTrendPoints, dailyReviewTrendValue } from "../../../domain/dailyReview.ts";
+import { localDateKey } from "../../../domain/stats.ts";
+import type { ScoreRecord } from "../../../domain/types.ts";
 import { formatNumber, shortDate } from "../../format.ts";
 import { Button } from "../../ui/Button.tsx";
 import { IconButton } from "../../ui/IconButton.tsx";

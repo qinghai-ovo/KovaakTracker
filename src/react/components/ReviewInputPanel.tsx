@@ -1,7 +1,7 @@
-import { recordKey } from "../../core/exclusions.ts";
-import { inferTrainingTimeForDate, resolvedSetupProfile } from "../../core/reviewInputs.ts";
-import { localDateKey } from "../../core/stats.ts";
-import type { DailyReviewEntry, RecordExclusion, ScoreRecord, SetupProfile } from "../../core/types.ts";
+import { recordKey } from "../../domain/exclusions.ts";
+import { inferTrainingTimeForDate, resolvedSetupProfile } from "../../domain/reviewInputs.ts";
+import { localDateKey } from "../../domain/stats.ts";
+import type { DailyReviewEntry, RecordExclusion, ScoreRecord, SetupProfile } from "../../domain/types.ts";
 
 interface ReviewInputPanelProps {
   dateKey: string;

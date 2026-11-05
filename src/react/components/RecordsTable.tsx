@@ -1,5 +1,5 @@
-import { recordKey } from "../../core/exclusions.ts";
-import type { RecordExclusion, ScoreRecord } from "../../core/types.ts";
+import { recordKey } from "../../domain/exclusions.ts";
+import type { RecordExclusion, ScoreRecord } from "../../domain/types.ts";
 import { formatDate, formatNumber } from "../format.ts";
 
 interface RecordsTableProps {

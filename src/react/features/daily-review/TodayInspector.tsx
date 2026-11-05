@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { recordKey } from "../../../core/exclusions.ts";
-import { inferTrainingTimeForDate, resolvedSetupProfile } from "../../../core/reviewInputs.ts";
-import { localDateKey } from "../../../core/stats.ts";
-import type { DailyReviewEntry, DailyReviewState, RecordExclusion, ScoreRecord, SetupProfile } from "../../../core/types.ts";
+import { recordKey } from "../../../domain/exclusions.ts";
+import { inferTrainingTimeForDate, resolvedSetupProfile } from "../../../domain/reviewInputs.ts";
+import { localDateKey } from "../../../domain/stats.ts";
+import type { DailyReviewEntry, DailyReviewState, RecordExclusion, ScoreRecord, SetupProfile } from "../../../domain/types.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Field } from "../../ui/Field.tsx";
 import { Panel } from "../../ui/Panel.tsx";

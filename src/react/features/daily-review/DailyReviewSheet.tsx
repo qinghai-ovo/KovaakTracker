@@ -1,6 +1,6 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { Download } from "lucide-react";
-import type { DailyReviewTableSettings } from "../../../core/types.ts";
+import type { DailyReviewTableSettings } from "../../../domain/types.ts";
 import { Button } from "../../ui/Button.tsx";
 import { SegmentedControl } from "../../ui/SegmentedControl.tsx";
 import { EmptyState } from "../../ui/EmptyState.tsx";

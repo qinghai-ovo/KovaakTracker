@@ -1,5 +1,5 @@
-import { normalizeScenarioName } from "./scenario.ts";
-import type { Benchmark, BenchmarkScenario } from "./types.ts";
+import { normalizeScenarioName } from "../domain/scenario.ts";
+import type { Benchmark, BenchmarkScenario } from "../domain/types.ts";
 
 export interface BenchmarkApiScenario {
   category?: string;

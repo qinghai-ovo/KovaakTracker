@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { recordKey } from "../../../core/exclusions.ts";
-import { dailyReviewTrendPoints, dailyReviewTrendValue } from "../../../core/dailyReview.ts";
-import { localDateKey } from "../../../core/stats.ts";
+import { recordKey } from "../../../domain/exclusions.ts";
+import { dailyReviewTrendPoints, dailyReviewTrendValue } from "../../../domain/dailyReview.ts";
+import { localDateKey } from "../../../domain/stats.ts";
 import { formatNumber } from "../../format.ts";
 import { Button } from "../../ui/Button.tsx";
 import { IconButton } from "../../ui/IconButton.tsx";

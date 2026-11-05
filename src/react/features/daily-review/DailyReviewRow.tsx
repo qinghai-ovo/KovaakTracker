@@ -1,4 +1,4 @@
-import type { DailyReviewTableSettings } from "../../../core/types.ts";
+import type { DailyReviewTableSettings } from "../../../domain/types.ts";
 import { formatNumber } from "../../format.ts";
 import { FloatingTooltip } from "../../ui/FloatingTooltip.tsx";
 import { RankProgressBar } from "./RankProgressBar.tsx";

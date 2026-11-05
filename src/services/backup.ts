@@ -1,4 +1,4 @@
-import type { AppState } from "../core/types.ts";
+import type { AppState } from "../domain/types.ts";
 
 export interface ExportJsonOptions {
   BlobImpl?: typeof Blob;

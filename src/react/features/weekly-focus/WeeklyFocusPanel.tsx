@@ -1,4 +1,4 @@
-import type { BenchmarkDifficulty, BenchmarkScenario, ScoreRecord } from "../../../core/types.ts";
+import type { BenchmarkDifficulty, BenchmarkScenario, ScoreRecord } from "../../../domain/types.ts";
 import { WeeklyReviewPanel } from "../../components/WeeklyReview.tsx";
 import { buildWeeklyFocusModel } from "./weeklyFocusViewModel.ts";
 

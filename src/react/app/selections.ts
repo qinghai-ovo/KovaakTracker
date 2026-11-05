@@ -1,4 +1,4 @@
-import type { AppState, Benchmark, ScoreRecord } from "./types.ts";
+import type { AppState, Benchmark, ScoreRecord } from "../../domain/types.ts";
 
 export function benchmarkChanged(benchmark: Benchmark | undefined): { selectedDifficulty: string; selectedScenario: string } {
   return {

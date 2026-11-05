@@ -1,5 +1,5 @@
-import { defaultDailyReviewTableSettings } from "../../../core/storage.ts";
-import type { DailyReviewTableSettings, SetupProfile } from "../../../core/types.ts";
+import { defaultDailyReviewTableSettings } from "../../../services/storage.ts";
+import type { DailyReviewTableSettings, SetupProfile } from "../../../domain/types.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Field } from "../../ui/Field.tsx";
 import { Panel } from "../../ui/Panel.tsx";
