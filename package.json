@@ -6,6 +6,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
+    "test": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"tests/**/*.test.ts\"",
     "check:ts-modules": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-ts-modules.mjs",
     "check:fallback": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-fallback-parity.mjs",
     "check:react-parity": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-react-parity.mjs",

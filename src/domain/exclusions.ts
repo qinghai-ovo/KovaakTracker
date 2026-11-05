@@ -71,3 +71,13 @@ export function restoreRecordExclusion(record: ScoreRecord, exclusions: Record<s
   const { [key]: _removed, ...rest } = exclusions;
   return rest;
 }
+
+/** How runs flagged as suspicious are treated: left out of metrics, or kept with a warning. */
+export type SuspiciousPolicy = "ignore" | "warn";
+
+export function countsTowardMetrics(record: ScoreRecord, exclusions: Record<string, RecordExclusion>, policy: SuspiciousPolicy = "ignore"): boolean {
+  const status = exclusions[recordKey(record)]?.status;
+  if (status === "excluded") return false;
+  if (status === "suspicious") return policy === "warn";
+  return true;
+}
