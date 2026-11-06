@@ -5,6 +5,8 @@ import type { BenchmarkScenario, RecordExclusion, ScoreRecord, SetupProfile } fr
 
 export interface BenchmarkInfo {
   name: string;
+  /** Every benchmark the source knows, for the Settings picker. */
+  available: string[];
   difficulty: string;
   difficulties: string[];
   scenarios: BenchmarkScenario[];
@@ -65,6 +67,7 @@ export interface TrackerSnapshot {
   /** Local time of the newest imported run, if any. */
   lastImportAt: string | null;
   watching: boolean;
+  folderAccess: FolderAccess;
 }
 
 export type TrackerEvent = { type: "runs:added"; records: ScoreRecord[] };
@@ -104,4 +107,22 @@ export interface TrackerData {
 
   /** Demo only: pretend a run was just finished in KovaaK. */
   simulateRun?(scenarioName: string): void;
+
+  // Capabilities a source may offer. Each returns a short status message for the UI.
+  /** Pick the stats folder (browser folder picker) and import it. */
+  chooseStatsFolder?(): Promise<string>;
+  /** Read the remembered folder again; `full` re-reads every file instead of only new ones. */
+  rescanStatsFolder?(options?: { full?: boolean }): Promise<string>;
+  /** Import CSV files picked through a plain file input (browsers without a folder picker). */
+  importCsvFiles?(files: File[], folderName?: string): Promise<string>;
+  /** Fetch the benchmark list and the selected difficulty's rank thresholds. */
+  syncBenchmark?(): Promise<string>;
+  selectBenchmark?(name: string): void;
+  /** Restore a backup exported by this app or the classic app. */
+  importBackup?(file: File): Promise<string>;
+  /** Everything worth backing up, as a JSON-serializable value. */
+  backup?(): unknown;
 }
+
+/** Whether the source can read the stats folder right now (browser folder access). */
+export type FolderAccess = "unsupported" | "none" | "needs-permission" | "ready";

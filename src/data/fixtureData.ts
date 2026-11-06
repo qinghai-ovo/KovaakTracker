@@ -39,6 +39,7 @@ export function createFixtureData(): TrackerData {
     source: "fixture",
     benchmark: {
       name: "Viscose S2",
+      available: ["Viscose S2"],
       difficulty: "Easier",
       difficulties: Object.keys(difficultyScale),
       scenarios: baseScenarios,
@@ -58,6 +59,7 @@ export function createFixtureData(): TrackerData {
     now: clock,
     lastImportAt: "19:49",
     watching: true,
+    folderAccess: "unsupported",
   };
   const listeners = new Set<() => void>();
   const eventListeners = new Set<(event: TrackerEvent) => void>();

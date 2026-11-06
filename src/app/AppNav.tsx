@@ -59,6 +59,13 @@ interface AppNavProps {
   styles: RankStyle[];
 }
 
+function watchLabel(snapshot: TrackerSnapshot): string {
+  if (snapshot.watching) return "正在监听 stats";
+  if (snapshot.folderAccess === "needs-permission") return "需要重新授权 stats";
+  if (snapshot.source === "browser" && !snapshot.statsDir) return "还没选择 stats 文件夹";
+  return "未在监听";
+}
+
 export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
   const link = ([name, label]: [RouteName, string]) => (
     <a key={name} className="nav__link" href={routeHref(name)} aria-current={name === active ? "page" : undefined}>
@@ -118,7 +125,7 @@ export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
       <div className="nav__live">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className={snapshot.watching ? "live-dot" : "live-dot is-off"} />
-          <span style={{ fontSize: 13, fontWeight: 500 }}>{snapshot.watching ? "正在监听 stats" : "未在监听"}</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{watchLabel(snapshot)}</span>
         </div>
         <span className="small muted">
           上次导入 {snapshot.lastImportAt ?? "—"}

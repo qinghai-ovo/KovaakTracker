@@ -3,6 +3,7 @@ import { dataScreen, type DataRecordView, type RecordStatus, type UnmatchedScena
 import type { ScoreRecord } from "../../domain/types.ts";
 import type { TrackerSnapshot } from "../../data/trackerData.ts";
 import { useRankStyles, useSnapshot, useTrackerData } from "../../app/data.tsx";
+import { useAction } from "../../app/useAction.ts";
 import { Segmented } from "../../ui/Controls.tsx";
 import { fmtClock, fmtMonthDay, shortScenarioName, sourceLabel } from "../../ui/format.ts";
 import { rankStyleAt } from "../../ui/rankStyle.ts";
@@ -10,7 +11,21 @@ import "./data.css";
 
 type Filter = "all" | "ignored" | "manual" | "pb";
 const PAGE = 50;
-const DESKTOP_ONLY = "桌面版（阶段 1）提供";
+const DESKTOP_ONLY = "示例数据里不可用";
+
+function folderStatus(snapshot: TrackerSnapshot): string {
+  if (snapshot.source === "fixture") return snapshot.watching ? "正在监听 · 新成绩自动导入" : "未在监听";
+  switch (snapshot.folderAccess) {
+    case "ready":
+      return snapshot.watching ? "已授权 · 每 15 秒检查一次新成绩" : snapshot.preferences.autoImport ? "已授权" : "已授权 · 自动导入已关闭，需手动扫描";
+    case "needs-permission":
+      return "浏览器需要重新授权读取这个文件夹";
+    case "unsupported":
+      return "这个浏览器不能直接读文件夹（请用 Chrome 或 Edge），可以改为选择 CSV 文件";
+    default:
+      return "选择 KovaaK 的 stats 文件夹后，成绩会自动导入";
+  }
+}
 
 const STATUS_LOOK: Record<RecordStatus, { label: string; className: string }> = {
   ok: { label: "正常", className: "status" },
@@ -41,6 +56,7 @@ export function DataScreen() {
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<ScoreRecord | null>(null);
+  const [run, busy, message] = useAction();
   const displayName = (name: string) => (snapshot.preferences.shortNames ? shortScenarioName(name) : name);
 
   const filtered = view.records.filter((row) => {
@@ -61,10 +77,22 @@ export function DataScreen() {
           <h1 className="page-title page-title--cjk">数据</h1>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn-secondary" disabled title={DESKTOP_ONLY}>
+          <label className={data.importBackup ? "btn-secondary file-button" : "btn-secondary file-button is-disabled"} title={data.importBackup ? "替换当前所有数据" : DESKTOP_ONLY}>
             导入备份
-          </button>
-          <button type="button" className="btn-primary" onClick={() => exportBackup(snapshot)}>
+            <input
+              type="file"
+              accept=".json,application/json"
+              disabled={!data.importBackup || busy}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file || !data.importBackup) return;
+                if (!window.confirm(`用 ${file.name} 替换当前的全部成绩和设置？建议先导出一份备份。`)) return;
+                void run(() => data.importBackup!(file));
+              }}
+            />
+          </label>
+          <button type="button" className="btn-primary" onClick={() => downloadJson(data.backup ? data.backup() : snapshotBackup(snapshot), snapshot.now)}>
             导出备份
           </button>
         </div>
@@ -79,17 +107,52 @@ export function DataScreen() {
             {snapshot.statsDir ?? "还没选择 stats 文件夹"}
           </span>
           <span className="small muted">
-            {snapshot.watching ? "正在监听" : "未在监听"} · {snapshot.preferences.autoImport ? "新成绩自动导入" : "自动导入已关闭"}
+            {folderStatus(snapshot)}
             {sourceLabel(snapshot.source)}
           </span>
+          {message ? (
+            <span className="small" role="status" style={{ color: message.startsWith("出错") ? "var(--negative)" : "var(--accent)" }}>
+              {busy ? "处理中… " : ""}
+              {message}
+            </span>
+          ) : busy ? (
+            <span className="small" role="status" style={{ color: "var(--accent)" }}>
+              正在读取成绩文件…
+            </span>
+          ) : null}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" className="btn-secondary" disabled title={DESKTOP_ONLY}>
-            重新扫描
-          </button>
-          <button type="button" className="btn-secondary" disabled title={DESKTOP_ONLY}>
-            更换文件夹
-          </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {snapshot.folderAccess === "unsupported" && data.importCsvFiles ? (
+            <label className="btn-secondary file-button" title="这个浏览器不能直接读文件夹，可以一次选中所有 CSV">
+              选择 CSV 文件
+              <input
+                type="file"
+                accept=".csv"
+                multiple
+                disabled={busy}
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  event.target.value = "";
+                  if (files.length) void run(() => data.importCsvFiles!(files));
+                }}
+              />
+            </label>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={!data.rescanStatsFolder || !snapshot.statsDir || busy}
+                title={data.rescanStatsFolder ? "只读取还没导入过的文件；按住 Shift 点击会全部重新读取" : DESKTOP_ONLY}
+                onClick={(event) => void run(() => data.rescanStatsFolder!({ full: event.shiftKey }))}
+              >
+                {snapshot.folderAccess === "needs-permission" ? "授权并扫描" : "重新扫描"}
+              </button>
+              <button type="button" className="btn-primary" disabled={!data.chooseStatsFolder || busy} title={data.chooseStatsFolder ? undefined : DESKTOP_ONLY} onClick={() => void run(() => data.chooseStatsFolder!())}>
+                {snapshot.statsDir ? "更换文件夹" : "选择 stats 文件夹"}
+              </button>
+            </>
+          )}
         </div>
       </section>
 
@@ -370,8 +433,9 @@ function toLocalInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function exportBackup(snapshot: TrackerSnapshot) {
-  const backup = {
+/** Backup of a source that has no backup() of its own (the sample data). */
+function snapshotBackup(snapshot: TrackerSnapshot): unknown {
+  return {
     app: "kovaak-tracker",
     version: 2,
     exportedAt: new Date().toISOString(),
@@ -385,10 +449,13 @@ function exportBackup(snapshot: TrackerSnapshot) {
     setup: snapshot.setup,
     days: snapshot.days,
   };
-  const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+}
+
+function downloadJson(value: unknown, now: Date) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `kovaak-tracker-backup-${snapshot.now.toISOString().slice(0, 10)}.json`;
+  link.download = `kovaak-tracker-backup-${now.toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }

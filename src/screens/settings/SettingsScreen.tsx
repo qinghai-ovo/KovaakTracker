@@ -4,20 +4,21 @@ import type { SuspiciousPolicy } from "../../domain/exclusions.ts";
 import type { OverallRankRule } from "../../domain/category.ts";
 import type { SetupProfile } from "../../domain/types.ts";
 import { useSnapshot, useTrackerData } from "../../app/data.tsx";
+import { useAction } from "../../app/useAction.ts";
+import { ensureNotificationPermission } from "../../app/useRunNotifications.ts";
 import { routeHref } from "../../app/router.ts";
 import { Segmented, SettingRow, Switch, TextField } from "../../ui/Controls.tsx";
 import { fmtDateTime } from "../../ui/format.ts";
 import "./settings.css";
 
-const DESKTOP_ONLY = "桌面版（阶段 1）提供";
+const UNAVAILABLE = "示例数据里不可用";
 
 export function SettingsScreen() {
   const data = useTrackerData();
   const snapshot = useSnapshot();
   const { settings, preferences, setup, benchmark } = snapshot;
-  // Benchmark switching, folder changes and syncing need the desktop backend (or the classic app for now).
-  const isDemo = snapshot.source !== "tauri";
-  const switchHint = snapshot.source === "browser" ? "目前在旧界面里切换 benchmark" : "示例数据只有一个 benchmark";
+  const [runSync, syncing, syncMessage] = useAction();
+  const [runFolder, choosing, folderMessage] = useAction();
 
   const setupFields: Array<[keyof SetupProfile, string, string]> = [
     ["mouse", "鼠标", "你的鼠标型号"],
@@ -39,8 +40,18 @@ export function SettingsScreen() {
       <div className="settings-grid">
         <SettingsSection title="Benchmark">
           <SettingRow label="Benchmark" help="决定场景列表、分类和段位线" htmlFor="benchmark-select">
-            <select id="benchmark-select" className="select" style={{ minWidth: 220 }} value={benchmark.name} disabled={isDemo} title={isDemo ? switchHint : undefined} onChange={() => undefined}>
-              <option>{benchmark.name}</option>
+            <select
+              id="benchmark-select"
+              className="select"
+              style={{ minWidth: 220 }}
+              value={benchmark.name}
+              disabled={!data.selectBenchmark || benchmark.available.length < 2}
+              title={data.selectBenchmark ? undefined : UNAVAILABLE}
+              onChange={(event) => data.selectBenchmark?.(event.target.value)}
+            >
+              {(benchmark.available.length ? benchmark.available : [benchmark.name]).map((name) => (
+                <option key={name}>{name}</option>
+              ))}
             </select>
           </SettingRow>
           <SettingRow label="难度" help="切换后段位按新难度的分数线重新计算">
@@ -48,25 +59,53 @@ export function SettingsScreen() {
           </SettingRow>
           <SettingRow
             label="段位线"
-            help={`${benchmark.syncedAt ? `${fmtDateTime(benchmark.syncedAt)} 同步` : "还没同步"} · ${benchmark.scenarios.length} 个场景 · 离线时使用上次同步的数据`}
+            help={
+              <>
+                {benchmark.syncedAt ? `${fmtDateTime(benchmark.syncedAt)} 同步` : "还没同步"} · {benchmark.scenarios.length} 个场景 · 离线时使用上次同步的数据
+                {syncMessage ? <span style={{ display: "block", color: syncMessage.startsWith("出错") ? "var(--negative)" : "var(--accent)" }}>{syncMessage}</span> : null}
+              </>
+            }
           >
-            <button type="button" className="btn-secondary" disabled={isDemo} title={isDemo ? DESKTOP_ONLY : undefined}>
-              立即同步
+            <button type="button" className="btn-secondary" disabled={!data.syncBenchmark || syncing} title={data.syncBenchmark ? "从 EVXL 和 KovaaK 读取场景与段位线" : UNAVAILABLE} onClick={() => void runSync(() => data.syncBenchmark!())}>
+              {syncing ? "同步中…" : "立即同步"}
             </button>
           </SettingRow>
         </SettingsSection>
 
         <SettingsSection title="成绩来源">
-          <SettingRow label="Stats 文件夹" help={<span className="mono" style={{ wordBreak: "break-all" }}>{snapshot.statsDir ?? "还没选择"}</span>}>
-            <button type="button" className="btn-secondary" disabled={isDemo} title={isDemo ? DESKTOP_ONLY : undefined}>
-              更换
+          <SettingRow
+            label="Stats 文件夹"
+            help={
+              <>
+                <span className="mono" style={{ wordBreak: "break-all" }}>{snapshot.statsDir ?? "还没选择"}</span>
+                {folderMessage ? <span style={{ display: "block", color: folderMessage.startsWith("出错") ? "var(--negative)" : "var(--accent)" }}>{folderMessage}</span> : null}
+              </>
+            }
+          >
+            <button type="button" className="btn-secondary" disabled={!data.chooseStatsFolder || choosing} title={data.chooseStatsFolder ? undefined : UNAVAILABLE} onClick={() => void runFolder(() => data.chooseStatsFolder!())}>
+              {snapshot.statsDir ? "更换" : "选择"}
             </button>
           </SettingRow>
-          <SettingRow label="自动导入新成绩" help="监听文件夹，KovaaK 写出成绩文件后立即导入">
+          <SettingRow label="自动导入新成绩" help={snapshot.source === "browser" ? "页面开着时每 15 秒检查一次文件夹里的新成绩" : "监听文件夹，KovaaK 写出成绩文件后立即导入"}>
             <Switch label="自动导入新成绩" checked={preferences.autoImport} onChange={(autoImport) => data.updatePreferences({ autoImport })} />
           </SettingRow>
-          <SettingRow label="打完一局后通知" help="游戏里也能看到分数、个人最佳和升段提示">
-            <Switch label="打完一局后通知" checked={preferences.notifyAfterRun} onChange={(notifyAfterRun) => data.updatePreferences({ notifyAfterRun })} />
+          <SettingRow
+            label="打完一局后通知"
+            help={
+              typeof Notification !== "undefined" && Notification.permission === "denied"
+                ? "浏览器已禁止这个页面发通知，请在地址栏左侧的网站设置里允许"
+                : "游戏里也能看到分数、个人最佳和升段提示（页面在后台时弹出系统通知）"
+            }
+          >
+            <Switch
+              label="打完一局后通知"
+              checked={preferences.notifyAfterRun}
+              onChange={(notifyAfterRun) => {
+                data.updatePreferences({ notifyAfterRun });
+                // The browser only shows notifications after the user allows them.
+                if (notifyAfterRun) void ensureNotificationPermission();
+              }}
+            />
           </SettingRow>
         </SettingsSection>
 

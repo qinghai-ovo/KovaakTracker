@@ -7,11 +7,13 @@ import { TodayScreen } from "../screens/today/TodayScreen.tsx";
 import { AppNav } from "./AppNav.tsx";
 import { DataNotice } from "./DataNotice.tsx";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
-import { useMapView, useRankStyles, useScreenInput, useSnapshot } from "./data.tsx";
+import { useMapView, useRankStyles, useScreenInput, useSnapshot, useTrackerData } from "./data.tsx";
+import { useRunNotifications } from "./useRunNotifications.ts";
 import { useRoute } from "./router.ts";
 
 export function App() {
   const route = useRoute();
+  useRunNotifications(useTrackerData());
   const snapshot = useSnapshot();
   const input = useScreenInput(snapshot);
   const styles = useRankStyles(snapshot);

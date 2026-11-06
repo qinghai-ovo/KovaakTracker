@@ -7,7 +7,7 @@ import type { ScenarioAliases } from "../domain/screens/data.ts";
 import { defaultScreenSettings, type ScreenSettings } from "../domain/screens/shared.ts";
 import type { TodayPlanItem } from "../domain/screens/today.ts";
 import type { AppState, Benchmark, DailyReviewEntry } from "../domain/types.ts";
-import { defaultPreferences, type AppPreferences, type DayEntry, type MoodKey, type TrackerSnapshot } from "./trackerData.ts";
+import { defaultPreferences, type AppPreferences, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type TrackerSnapshot } from "./trackerData.ts";
 
 /** localStorage key the classic app reads and writes. */
 export const LEGACY_STORAGE_KEY = "kovaak-benchmark-tracker-v2";
@@ -22,6 +22,8 @@ export interface AppStore {
   preferences: AppPreferences;
   /** Mood chips per training day; notes live in the classic app's daily reviews. */
   moods: Record<string, Partial<Record<MoodKey, string>>>;
+  /** Stats files that could not be imported, with the reason. */
+  failedImports: FailedImport[];
 }
 
 export const emptyAppStore: AppStore = {
@@ -30,6 +32,7 @@ export const emptyAppStore: AppStore = {
   settings: { ...defaultScreenSettings },
   preferences: { ...defaultPreferences },
   moods: {},
+  failedImports: [],
 };
 
 const STABLE_WINDOWS: StableWindow[] = ["last10", "last20", "week"];
@@ -65,6 +68,9 @@ export function parseAppStore(raw: string | null): AppStore {
       theme: "light",
     },
     moods: source.moods && typeof source.moods === "object" ? { ...source.moods } : {},
+    failedImports: Array.isArray(source.failedImports)
+      ? source.failedImports.filter((item) => item && typeof item.fileName === "string").map((item) => ({ fileName: item.fileName, reason: String(item.reason ?? "") }))
+      : [],
   };
 }
 
@@ -95,7 +101,7 @@ function clock(value: string | null): string | null {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date): TrackerSnapshot {
+export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, live: { watching: boolean; folderAccess: FolderAccess } = { watching: false, folderAccess: "none" }): TrackerSnapshot {
   const { benchmark, difficulty } = selectedDifficulty(state);
   const records = [...state.csvRecords, ...state.manualRecords];
   const days: Record<string, DayEntry> = {};
@@ -109,6 +115,7 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date):
     source: "browser",
     benchmark: {
       name: benchmark?.benchmarkName ?? "（未选择 benchmark）",
+      available: state.benchmarks.map((item) => item.benchmarkName),
       difficulty: difficulty?.difficultyName ?? "",
       difficulties: (benchmark?.difficulties ?? []).map((item) => item.difficultyName),
       // Only scenarios with rank thresholds can be ranked; the classic app fills these on sync.
@@ -125,10 +132,11 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date):
     setup: state.defaultSetupProfile,
     days,
     statsDir: state.statsFolderName || null,
-    failedImports: [],
+    failedImports: store.failedImports,
     now,
     lastImportAt: clock(state.statsFolderUpdatedAt || newestDate(state.csvRecords.map((record) => record.date))),
-    watching: false,
+    watching: live.watching,
+    folderAccess: live.folderAccess,
   };
 }
 
