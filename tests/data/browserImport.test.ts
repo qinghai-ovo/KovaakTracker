@@ -4,6 +4,7 @@ import { createBrowserData, type StatsFolderApi } from "../../src/data/browserDa
 import { importedFileNames, mergeImport } from "../../src/data/importLogic.ts";
 import { APP_STORAGE_KEY, LEGACY_STORAGE_KEY, parseAppStore } from "../../src/data/legacyState.ts";
 import { rankColors, sampleThresholds } from "../../src/data/fixtures/designSample.ts";
+import { memoryRecordStore } from "../../src/data/recordStore.ts";
 import type { CsvReadableFile } from "../../src/services/fileImport.ts";
 import type { TrackerEvent } from "../../src/data/trackerData.ts";
 
@@ -68,10 +69,11 @@ test("mergeImport replaces re-read files and tracks failures per file", () => {
   assert.deepEqual([...importedFileNames(outcome.csvRecords)], ["f1.csv"]);
 });
 
-test("choosing the stats folder imports runs, failures and folder name into shared storage", async () => {
+test("choosing the stats folder imports runs into the record store", async () => {
   const storage = memoryStorage({ [LEGACY_STORAGE_KEY]: JSON.stringify(savedState()) });
   const folder = fakeFolder([statsFile("Smoothbot Arm", 2740, "2026.11.05-19.31.00"), statsFile("Smoothbot Arm", 2610, "2026.11.05-19.35.00"), brokenFile]);
-  const data = createBrowserData({ storage, clock, watch: false, folderApi: folder });
+  const recordStore = memoryRecordStore();
+  const data = createBrowserData({ storage, clock, watch: false, folderApi: folder, recordStore });
   const events: TrackerEvent[] = [];
   data.onEvent((event) => events.push(event));
 
@@ -86,8 +88,13 @@ test("choosing the stats folder imports runs, failures and folder name into shar
   assert.equal(events[0].records.length, 2);
 
   const saved = JSON.parse(storage.getItem(LEGACY_STORAGE_KEY)!);
-  assert.equal(saved.csvRecords.length, 2, "the classic app sees the same runs");
-  assert.equal(saved.csvRecords[0].scenario, "Smoothbot Arm");
+  assert.equal(saved.statsFolderName, "stats");
+  assert.equal((saved.csvRecords ?? []).length, 0, "runs no longer go into the small localStorage entry");
+  const stored = await recordStore.loadAll();
+  assert.equal(stored.length, 2);
+  assert.equal(stored[0].scenario, "Smoothbot Arm");
+  assert.equal(stored[0].metadata?.rawMetadata, undefined, "raw CSV fields are not kept");
+  assert.equal(stored[0].metadata?.dpi, 1600);
   assert.equal(parseAppStore(storage.getItem(APP_STORAGE_KEY)).failedImports.length, 1);
 
   // A rescan only reads files it has not imported yet (the broken one is retried).
@@ -131,4 +138,39 @@ test("benchmark sync keeps the list when EVXL fails and stores the KovaaK thresh
   assert.deepEqual(snapshot.benchmark.scenarios.map((scenario) => scenario.name).sort(), ["Air Angelic", "Smoothbot Arm"]);
   assert.deepEqual(snapshot.benchmark.scenarios.find((scenario) => scenario.name === "Smoothbot Arm")!.rankMaxes, [2100, 2300]);
   assert.ok(snapshot.benchmark.syncedAt);
+});
+
+const settle = async (data: { getSnapshot(): { loading: boolean } }) => {
+  for (let i = 0; i < 50 && data.getSnapshot().loading; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+};
+
+test("runs the classic app kept in localStorage move into the record store", async () => {
+  const legacyRun = { id: "csv:old", scenario: "Smoothbot Arm", score: 2500, date: "2026-11-01T12:00:00.000Z", source: "csv", note: "old.csv", metadata: { sourceFile: "old.csv", sourceType: "csv", rawMetadata: { a: "1" } } };
+  const storage = memoryStorage({ [LEGACY_STORAGE_KEY]: JSON.stringify({ ...savedState(), csvRecords: [legacyRun] }) });
+  const recordStore = memoryRecordStore();
+  const data = createBrowserData({ storage, clock, watch: false, folderApi: fakeFolder([]), recordStore });
+  await settle(data);
+  assert.equal(data.getSnapshot().loading, false);
+  assert.equal(data.getSnapshot().records.length, 1);
+  assert.deepEqual((await recordStore.loadAll()).map((record) => record.id), ["csv:old"]);
+  assert.equal(JSON.parse(storage.getItem(LEGACY_STORAGE_KEY)!).csvRecords.length, 0, "localStorage is freed");
+  // A second start reads the record store, not localStorage.
+  const again = createBrowserData({ storage, clock, watch: false, folderApi: fakeFolder([]), recordStore });
+  await settle(again);
+  assert.equal(again.getSnapshot().records.length, 1);
+});
+
+test("a full browser storage is reported instead of silently dropping the change", async () => {
+  const items = new Map([[LEGACY_STORAGE_KEY, JSON.stringify(savedState())]]);
+  const storage = {
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: () => {
+      throw new DOMException("quota", "QuotaExceededError");
+    },
+  };
+  const data = createBrowserData({ storage, clock, watch: false, folderApi: fakeFolder([]), recordStore: memoryRecordStore() });
+  await settle(data);
+  data.updateSetup({ dpi: "800" });
+  assert.equal(data.getSnapshot().setup.dpi, "800", "the edit is kept for this session");
+  assert.match(data.getSnapshot().storageWarning ?? "", /存储空间不足/);
 });

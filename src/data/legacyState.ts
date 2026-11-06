@@ -157,7 +157,17 @@ function clock(value: string | null): string | null {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, live: { watching: boolean; folderAccess: FolderAccess } = { watching: false, folderAccess: "none" }): TrackerSnapshot {
+export interface LiveState {
+  watching: boolean;
+  folderAccess: FolderAccess;
+  loading: boolean;
+  storageWarning: string | null;
+  importProgress: { done: number; total: number } | null;
+}
+
+const idle: LiveState = { watching: false, folderAccess: "none", loading: false, storageWarning: null, importProgress: null };
+
+export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, live: LiveState = idle): TrackerSnapshot {
   const { benchmark, difficulty } = selectedDifficulty(state);
   const records = [...state.csvRecords, ...state.manualRecords];
   const days: Record<string, DayEntry> = {};
@@ -195,6 +205,9 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, 
     lastImportAt: clock(state.statsFolderUpdatedAt || newestDate(state.csvRecords.map((record) => record.date))),
     watching: live.watching,
     folderAccess: live.folderAccess,
+    loading: live.loading,
+    storageWarning: live.storageWarning,
+    importProgress: live.importProgress,
   };
 }
 

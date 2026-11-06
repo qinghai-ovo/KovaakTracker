@@ -93,6 +93,12 @@ export interface TrackerSnapshot {
   lastImportAt: string | null;
   watching: boolean;
   folderAccess: FolderAccess;
+  /** Saved runs are still being read (the screens should not say "no data" yet). */
+  loading: boolean;
+  /** Set when something could not be saved, e.g. browser storage is full. */
+  storageWarning: string | null;
+  /** Progress of a large import, for the Data screen. */
+  importProgress: { done: number; total: number } | null;
 }
 
 export type TrackerEvent = { type: "runs:added"; records: ScoreRecord[] };

@@ -72,7 +72,7 @@ export function DataScreen() {
       <header className="page-header">
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span className="page-header__date">
-            共 {view.totals.imported.toLocaleString()} 局 · 上次导入 {snapshot.lastImportAt ?? "—"}
+            {snapshot.loading ? "正在读取已保存的成绩…" : `共 ${view.totals.imported.toLocaleString()} 局 · 上次导入 ${snapshot.lastImportAt ?? "—"}`}
           </span>
           <h1 className="page-title page-title--cjk">数据</h1>
         </div>
@@ -110,7 +110,11 @@ export function DataScreen() {
             {folderStatus(snapshot)}
             {sourceLabel(snapshot.source)}
           </span>
-          {message ? (
+          {snapshot.importProgress ? (
+            <span className="small" role="status" style={{ color: "var(--accent)" }}>
+              正在读取成绩文件 {snapshot.importProgress.done.toLocaleString()} / {snapshot.importProgress.total.toLocaleString()}…
+            </span>
+          ) : message ? (
             <span className="small" role="status" style={{ color: message.startsWith("出错") ? "var(--negative)" : "var(--accent)" }}>
               {busy ? "处理中… " : ""}
               {message}

@@ -78,6 +78,7 @@
 .btn-link { color: var(--accent); font-size: 13px; font-weight: 500; }
 
 .data-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; padding: 18px 22px; border-radius: 16px; background: var(--accent-tint); border: 1px solid rgba(14, 116, 144, 0.2); }
+.data-notice--warn { background: #fdf3ec; border-color: rgba(194, 87, 12, 0.3); }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 a.btn-primary:hover { color: #fff; }
 

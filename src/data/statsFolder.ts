@@ -1,5 +1,6 @@
 // Browser access to the KovaaK stats folder (File System Access API, Chrome / Edge).
 // The folder handle is stored in the same IndexedDB slot as the classic app, so both share it.
+import type { CsvReadableFile } from "../services/fileImport.ts";
 import { loadHandle, saveHandle } from "../services/storage.ts";
 
 const HANDLE_DB = "kovaak-benchmark-tracker-handles";
@@ -36,6 +37,23 @@ export async function rememberedStatsFolder(): Promise<FileSystemDirectoryHandle
   } catch {
     return null;
   }
+}
+
+/**
+ * Lists the CSV files by name only; each file is opened when its text is read. With 10k+ stats
+ * files this keeps the 15-second check for new runs cheap.
+ */
+export async function listStatsFiles(directory: FileSystemDirectoryHandle): Promise<CsvReadableFile[]> {
+  const files: CsvReadableFile[] = [];
+  const entries = (directory as FileSystemDirectoryHandle & {
+    entries(): AsyncIterable<[string, FileSystemFileHandle | FileSystemDirectoryHandle]>;
+  }).entries();
+  for await (const [name, handle] of entries) {
+    if (handle.kind !== "file" || !name.toLowerCase().endsWith(".csv")) continue;
+    const fileHandle = handle as FileSystemFileHandle;
+    files.push({ name, text: async () => (await fileHandle.getFile()).text() });
+  }
+  return files;
 }
 
 /** Current read permission; `request` asks the user (must run inside a click). */

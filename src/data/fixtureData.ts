@@ -74,6 +74,9 @@ export function createFixtureData(): TrackerData {
     lastImportAt: "19:49",
     watching: true,
     folderAccess: "unsupported",
+    loading: false,
+    storageWarning: null,
+    importProgress: null,
   };
   const listeners = new Set<() => void>();
   const eventListeners = new Set<(event: TrackerEvent) => void>();
