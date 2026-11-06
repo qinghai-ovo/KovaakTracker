@@ -111,9 +111,13 @@ a.btn-primary:hover { color: #fff; }
 /* ---- Rank bars --------------------------------------------------------- */
 .rank-ladder { position: relative; display: flex; width: 100%; }
 .rank-ladder--lg { gap: 3px; height: 12px; }
-.rank-ladder--sm { gap: 2px; height: 4px; }
+.rank-ladder--sm { gap: 2px; height: 10px; align-items: center; }
+.rank-ladder--sm .rank-ladder__seg { height: 4px; }
 .rank-ladder__seg { flex: 1 1 0; position: relative; overflow: hidden; border-radius: 3px; }
 .rank-ladder--sm .rank-ladder__seg { border-radius: 2px; }
+/* The highest rank reached: taller, with a ring in the rank's ink color. */
+.rank-ladder__seg.is-current { box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 3px var(--ring); z-index: 1; }
+.rank-ladder--sm .rank-ladder__seg.is-current { height: 8px; }
 .rank-ladder__fill { position: absolute; top: 0; bottom: 0; left: 0; }
 .rank-ladder__stable, .rank-ladder__pb { position: absolute; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); }
 .rank-ladder__stable { width: 14px; height: 14px; background: #fff; border: 2px solid var(--text); }
