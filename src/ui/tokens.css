@@ -17,10 +17,11 @@
   --negative: #c2570c;
   --track-empty: #e3e8f0;
 
-  --font-display: Unbounded, Geist, "Noto Sans SC", sans-serif;
-  --font-ui: Geist, "Noto Sans SC", system-ui, sans-serif;
-  --font-cjk: "Noto Sans SC", Geist, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
+  /* Fonts ship with the app (src/ui/fonts.ts); the families are variable fonts from @fontsource-variable. */
+  --font-display: "Unbounded Variable", "Geist Variable", "Noto Sans SC Variable", sans-serif;
+  --font-ui: "Geist Variable", "Noto Sans SC Variable", system-ui, sans-serif;
+  --font-cjk: "Noto Sans SC Variable", "Geist Variable", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
 
   --radius-card: 22px;
   --radius-control: 12px;
