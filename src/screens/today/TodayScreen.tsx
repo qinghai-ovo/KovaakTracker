@@ -181,6 +181,7 @@ function ScenarioHero({ scenario, styles, stableWindow }: { scenario: TodayScena
           pbProgress={scenario.personalBest === null ? null : scenario.personalBestProgress}
           stableProgress={scenario.stableProgress}
           markerColor={rankStyle.ink}
+          currentIndex={scenario.rank.index}
         />
         <div className="legend">
           <span className="legend__item">

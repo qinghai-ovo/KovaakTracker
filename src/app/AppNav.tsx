@@ -2,8 +2,8 @@ import { sourceLabel } from "../ui/format.ts";
 import type { ReactNode } from "react";
 import type { TrackerSnapshot } from "../data/trackerData.ts";
 import type { RankView } from "../domain/screens/shared.ts";
-import { RankPalette } from "../ui/RankBars.tsx";
-import { rankStyleAt, type RankStyle } from "../ui/rankStyle.ts";
+import type { RankStyle } from "../ui/rankStyle.ts";
+import { TrackedBenchmarks } from "./TrackedBenchmarks.tsx";
 import { routeHref, type RouteName } from "./router.ts";
 
 const ICONS: Record<RouteName, ReactNode> = {
@@ -75,7 +75,6 @@ export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
       <span>{label}</span>
     </a>
   );
-  const overallStyle = rankStyleAt(styles, overall.index);
 
   return (
     <nav className="nav" aria-label="主导航">
@@ -97,30 +96,7 @@ export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
         {SECONDARY.map(link)}
       </div>
 
-      <div className="nav__bench">
-        <div className="nav__row">
-          <span className="mono faint" style={{ fontSize: 10, letterSpacing: "0.2em" }}>
-            BENCHMARK
-          </span>
-          <a href={routeHref("settings")} className="small" style={{ fontWeight: 500 }}>
-            切换
-          </a>
-        </div>
-        <div className="nav__row">
-          <span style={{ fontSize: 14, fontWeight: 600 }}>{snapshot.benchmark.name}</span>
-          <span className="small muted">{snapshot.benchmark.difficulty}</span>
-        </div>
-        <RankPalette styles={styles} currentIndex={overall.index} />
-        <div className="nav__row">
-          <span className="small muted">综合段位</span>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: overallStyle.ink }}>{overall.name}</span>
-            <span className="mono muted" style={{ fontSize: 11 }}>
-              {overall.index + 1} / {styles.length}
-            </span>
-          </span>
-        </div>
-      </div>
+      <TrackedBenchmarks snapshot={snapshot} activeOverall={overall} />
 
       <div className="nav__live">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

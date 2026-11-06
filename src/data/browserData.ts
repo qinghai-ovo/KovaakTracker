@@ -1,22 +1,24 @@
 import { toggleRecordCounted } from "../domain/exclusions.ts";
 import { sameScenario } from "../domain/scenario.ts";
 import { resolveScenarioName } from "../domain/screens/data.ts";
-import type { AppState, Benchmark, ScoreRecord } from "../domain/types.ts";
+import type { AppState, Benchmark, CsvImportStatus, ScoreRecord } from "../domain/types.ts";
 import { mergeBenchmarks } from "../services/benchmark.ts";
 import { fetchEvxlBenchmarks, fetchKovaakBenchmarkDetails } from "../services/benchmarkSync.ts";
 import { browserFetch, LocalDevProxyUnavailableError } from "../services/browserFetch.ts";
-import { filesFromStatsDirectory, parseCsvFiles, type CsvReadableFile } from "../services/fileImport.ts";
+import { parseKovaakCsvWithStatus } from "../services/csv.ts";
+import type { CsvReadableFile } from "../services/fileImport.ts";
 import { loadState, normalizeState, type StorageLike } from "../services/storage.ts";
 import { benchmarkFallback } from "./benchmarkFallback.ts";
 import { importedFileNames, importMessage, mergeImport } from "./importLogic.ts";
-import { APP_STORAGE_KEY, LEGACY_STORAGE_KEY, parseAppStore, snapshotFromLegacy, withDayNote, type AppStore } from "./legacyState.ts";
-import { folderPermission, folderPickerSupported, pickStatsFolder, rememberedStatsFolder } from "./statsFolder.ts";
-import type { FolderAccess, ManualRunInput, TrackerData, TrackerEvent, TrackerSnapshot } from "./trackerData.ts";
+import { activeRef, APP_STORAGE_KEY, type LiveState, LEGACY_STORAGE_KEY, parseAppStore, snapshotFromLegacy, trackedRefs, withDayNote, type AppStore, type TrackedRef } from "./legacyState.ts";
+import { compactRecord, indexedDbRecordStore, memoryRecordStore, type RecordStore } from "./recordStore.ts";
+import { folderPermission, folderPickerSupported, listStatsFiles, pickStatsFolder, rememberedStatsFolder } from "./statsFolder.ts";
+import { trackedId, type FolderAccess, type ManualRunInput, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
 
 const EVXL_BENCHMARK_URL = "https://evxl.app/benchmarks/Viscose%20Benchmarks%20S2";
 /** Any Steam id works for reading thresholds; this is the one the classic app uses. */
 const THRESHOLD_STEAM_ID = "76561197960287930";
-/** How often the remembered stats folder is checked for new files while the page is visible. */
+/** How often the remembered stats folder is checked for new files (also while the page is in the background). */
 const POLL_MS = 15_000;
 
 /** Where stats files come from; replaceable in tests. */
@@ -33,8 +35,10 @@ const browserFolderApi: StatsFolderApi = {
   pick: pickStatsFolder,
   remembered: rememberedStatsFolder,
   permission: folderPermission,
-  files: filesFromStatsDirectory,
+  files: listStatsFiles,
 };
+
+const STORAGE_FULL = "浏览器存储空间不足，刚才的修改没有保存。请先导出备份。";
 
 type RawState = Partial<AppState> & Record<string, unknown>;
 
@@ -45,12 +49,15 @@ interface BrowserDataOptions {
   watch?: boolean;
   folderApi?: StatsFolderApi;
   fetchImpl?: typeof fetch;
+  /** Where imported runs are kept; IndexedDB by default. */
+  recordStore?: RecordStore;
 }
 
 /**
- * Real data in this browser: reads what the classic app (react.html) imported and saved, and
- * writes edits back to the same storage so both UIs stay in sync. Both pages must be opened
- * from the same address (127.0.0.1 and localhost keep separate storage).
+ * Real data in this browser. Imported runs live in IndexedDB (a long history does not fit in
+ * localStorage); everything else (exclusions, manual runs, notes, benchmarks) stays in the
+ * classic app's localStorage entry, so both UIs share it. Both pages must be opened from the
+ * same address (127.0.0.1 and localhost keep separate storage).
  */
 export function createBrowserData({
   storage = localStorage,
@@ -58,21 +65,32 @@ export function createBrowserData({
   watch = true,
   folderApi = browserFolderApi,
   fetchImpl = browserFetch,
+  recordStore = typeof indexedDB === "undefined" ? memoryRecordStore() : indexedDbRecordStore(),
 }: BrowserDataOptions = {}): TrackerData {
   let legacy: AppState = loadState(LEGACY_STORAGE_KEY, benchmarkFallback, storage);
   let store: AppStore = parseAppStore(storage.getItem(APP_STORAGE_KEY));
+  /** Imported runs; the source of truth is the record store, loaded below. */
+  let csvRecords: ScoreRecord[] = legacy.csvRecords.map(compactRecord);
+  let loading = true;
+  let storageWarning: string | null = null;
+  let importProgress: LiveState["importProgress"] = null;
   let folder: FileSystemDirectoryHandle | null = null;
   let folderAccess: FolderAccess = folderApi.supported() ? "none" : "unsupported";
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let importing: Promise<string> | null = null;
-  const live = () => ({ watching: pollTimer !== null, folderAccess });
-  let snapshot: TrackerSnapshot = snapshotFromLegacy(legacy, store, clock(), live());
+  const live = (): LiveState => ({ watching: pollTimer !== null, folderAccess, loading, storageWarning, importProgress });
+  const view = () => ({ ...legacy, csvRecords });
+  let snapshot: TrackerSnapshot = snapshotFromLegacy(view(), store, clock(), live());
   const listeners = new Set<() => void>();
   const eventListeners = new Set<(event: TrackerEvent) => void>();
 
   function rebuild() {
-    snapshot = snapshotFromLegacy(legacy, store, clock(), live());
+    snapshot = snapshotFromLegacy(view(), store, clock(), live());
     listeners.forEach((listener) => listener());
+  }
+
+  function emitAdded(records: ScoreRecord[]) {
+    if (records.length) eventListeners.forEach((listener) => listener({ type: "runs:added", records }));
   }
 
   function readRaw(): RawState {
@@ -91,29 +109,63 @@ export function createBrowserData({
     try {
       storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(raw));
     } catch {
-      // Storage full: keep the edit in memory for this session.
+      // Keep the edit for this session and say so, instead of silently reloading old data.
+      storageWarning = STORAGE_FULL;
     }
-    legacy = loadState(LEGACY_STORAGE_KEY, benchmarkFallback, storage);
+    legacy = normalizeState(raw as Partial<AppState>, benchmarkFallback);
     rebuild();
+  }
+
+  function saveStore() {
+    try {
+      storage.setItem(APP_STORAGE_KEY, JSON.stringify(store));
+    } catch {
+      storageWarning = STORAGE_FULL;
+    }
   }
 
   function writeStore(next: Partial<AppStore>) {
     store = { ...store, ...next };
-    try {
-      storage.setItem(APP_STORAGE_KEY, JSON.stringify(store));
-    } catch {
-      // Same as above.
-    }
+    saveStore();
     rebuild();
   }
 
+  /** Reads saved runs; moves runs the classic app kept in localStorage into the record store. */
+  const ready: Promise<void> = (async () => {
+    try {
+      const stored = await recordStore.loadAll();
+      const known = new Set(stored.map((record) => record.id));
+      const fromLegacy = legacy.csvRecords.filter((record) => !known.has(record.id)).map(compactRecord);
+      if (fromLegacy.length) await recordStore.put(fromLegacy);
+      csvRecords = [...stored, ...fromLegacy];
+      if (legacy.csvRecords.length) {
+        // They are safe in the record store now; free localStorage for everything else.
+        writeLegacy((raw) => {
+          raw.csvRecords = [];
+        });
+      }
+    } catch {
+      storageWarning = "无法打开浏览器数据库，导入的成绩只保留到关闭页面为止。";
+    } finally {
+      loading = false;
+      rebuild();
+    }
+  })();
+
   function reloadFromStorage() {
-    const before = new Set(legacy.csvRecords.map((record) => record.id));
     legacy = loadState(LEGACY_STORAGE_KEY, benchmarkFallback, storage);
     store = parseAppStore(storage.getItem(APP_STORAGE_KEY));
+    // The classic app imports into localStorage; take over runs it added there.
+    const known = new Set(csvRecords.map((record) => record.id));
+    const added = legacy.csvRecords.filter((record) => !known.has(record.id)).map(compactRecord);
+    if (added.length) {
+      csvRecords = [...csvRecords, ...added];
+      void recordStore.put(added).catch(() => {
+        storageWarning = STORAGE_FULL;
+      });
+    }
     rebuild();
-    const added = legacy.csvRecords.filter((record) => !before.has(record.id));
-    if (added.length) eventListeners.forEach((listener) => listener({ type: "runs:added", records: added }));
+    emitAdded(added);
   }
 
   if (watch && typeof window !== "undefined") {
@@ -138,29 +190,56 @@ export function createBrowserData({
 
   // ---- Stats import ---------------------------------------------------------------
 
+  const yieldToBrowser = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
   /** Parses the given files and merges them into the saved runs. */
   async function importFiles(files: CsvReadableFile[], folderName: string, { full = false, silent = false } = {}): Promise<string> {
-    const known = full ? new Set<string>() : importedFileNames(legacy.csvRecords);
+    await ready;
+    const known = full ? new Set<string>() : importedFileNames(csvRecords);
     const toRead = files.filter((file) => !known.has(file.name));
     const scenarios = snapshot.benchmark.scenarios;
-    const { imported, fileStatuses } = await parseCsvFiles(toRead, {
-      matchScenarioName: (name) => resolveScenarioName(name, scenarios, store.aliases),
-    });
-    const outcome = mergeImport(legacy.csvRecords, imported, fileStatuses, store.failedImports);
+    const matchScenarioName = (name: string) => resolveScenarioName(name, scenarios, store.aliases);
+    const imported: ScoreRecord[] = [];
+    const statuses: CsvImportStatus[] = [];
+    const showProgress = toRead.length > 100;
+    for (let index = 0; index < toRead.length; index += 1) {
+      const file = toRead[index];
+      try {
+        const result = parseKovaakCsvWithStatus(await file.text(), file.name, file.lastModified, { matchScenarioName });
+        statuses.push(result.status);
+        if (result.record) imported.push(compactRecord(result.record));
+      } catch {
+        statuses.push({ fileName: file.name, success: false, failureReason: "read-error", dateSource: "", matchedCurrentBenchmark: false });
+      }
+      if (showProgress && index % 200 === 0) {
+        importProgress = { done: index, total: toRead.length };
+        rebuild();
+        await yieldToBrowser();
+      }
+    }
+    importProgress = null;
+
+    const outcome = mergeImport(csvRecords, imported, statuses, store.failedImports);
+    const nextIds = new Set(outcome.csvRecords.map((record) => record.id));
+    const removed = csvRecords.filter((record) => !nextIds.has(record.id)).map((record) => record.id ?? "");
+    try {
+      if (removed.length) await recordStore.remove(removed);
+      if (imported.length) await recordStore.put(imported);
+    } catch {
+      storageWarning = "成绩没能写入浏览器数据库，刷新页面后可能会丢失。请先导出备份。";
+    }
+    csvRecords = outcome.csvRecords;
     if (outcome.scanned || !silent) {
       store = { ...store, failedImports: outcome.failedImports };
-      try {
-        storage.setItem(APP_STORAGE_KEY, JSON.stringify(store));
-      } catch {
-        // Storage full; failures stay in memory.
-      }
+      saveStore();
       writeLegacy((raw) => {
-        raw.csvRecords = outcome.csvRecords;
         raw.statsFolderName = folderName;
         raw.statsFolderUpdatedAt = clock().toISOString();
       });
+    } else {
+      rebuild();
     }
-    if (outcome.added.length) eventListeners.forEach((listener) => listener({ type: "runs:added", records: outcome.added }));
+    emitAdded(outcome.added);
     return importMessage(outcome, folderName);
   }
 
@@ -183,7 +262,11 @@ export function createBrowserData({
     pollTimer = null;
   }
 
-  /** Browsers cannot watch a folder, so check the remembered one for new files every few seconds. */
+  /**
+   * Browsers cannot watch a folder, so check the remembered one for new files every few seconds.
+   * This keeps running while the page is in the background, i.e. while the player is in KovaaK
+   * (browsers slow background timers down to about once a minute).
+   */
   function startPolling() {
     stopPolling();
     if (!watch || !folder || folderAccess !== "ready" || !store.preferences.autoImport) {
@@ -191,9 +274,8 @@ export function createBrowserData({
       return;
     }
     pollTimer = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       const handle = folder;
-      if (!handle) return;
+      if (!handle || importing) return;
       void exclusive(async () => importFiles(await folderApi.files(handle), handle.name, { silent: true })).catch(() => {
         // Permission was revoked or the folder disappeared.
         stopPolling();
@@ -235,33 +317,63 @@ export function createBrowserData({
       if (error instanceof LocalDevProxyUnavailableError) return "在线同步需要用 start-dev.bat 打开 http://127.0.0.1:5173/app.html";
       messages.push("EVXL 列表更新失败，沿用已有清单");
     }
-    const benchmark = benchmarks.find((item) => item.benchmarkName === legacy.selectedBenchmark) ?? benchmarks[0];
-    const difficulty = benchmark?.difficulties?.find((item) => item.difficultyName === legacy.selectedDifficulty) ?? benchmark?.difficulties?.[0];
-    if (benchmark && difficulty?.kovaaksBenchmarkId) {
+    // Thresholds for every followed difficulty, so switching in the sidebar works offline.
+    const targets = trackedRefs({ ...legacy, benchmarks }, store);
+    const synced: string[] = [];
+    for (const ref of targets) {
+      const difficulty = benchmarks.find((item) => item.benchmarkName === ref.benchmark)?.difficulties?.find((item) => item.difficultyName === ref.difficulty);
+      if (!difficulty?.kovaaksBenchmarkId) continue;
       try {
         const scenarios = await fetchKovaakBenchmarkDetails({ benchmarkId: difficulty.kovaaksBenchmarkId, steamId: THRESHOLD_STEAM_ID, fetchImpl });
         benchmarks = benchmarks.map((item) =>
-          item.benchmarkName !== benchmark.benchmarkName
+          item.benchmarkName !== ref.benchmark
             ? item
             : {
                 ...item,
                 difficulties: (item.difficulties || []).map((entry) =>
-                  entry.difficultyName === difficulty.difficultyName ? { ...entry, scenarios, apiUpdatedAt: clock().toISOString() } : entry,
+                  entry.difficultyName === ref.difficulty ? { ...entry, scenarios, apiUpdatedAt: clock().toISOString() } : entry,
                 ),
               },
         );
-        messages.push(`${difficulty.difficultyName} · ${scenarios.length} 个场景的段位线`);
+        synced.push(`${ref.difficulty} · ${scenarios.length} 个场景`);
       } catch {
-        messages.push(`读取 ${difficulty.difficultyName} 段位线失败，可稍后重试`);
+        messages.push(`读取 ${ref.difficulty} 段位线失败，可稍后重试`);
       }
     }
+    if (synced.length) messages.push(`段位线：${synced.join("，")}`);
+    const active = activeRef({ ...legacy, benchmarks });
     writeLegacy((raw) => {
       raw.benchmarks = benchmarks;
-      raw.selectedBenchmark = benchmark?.benchmarkName ?? raw.selectedBenchmark;
-      raw.selectedDifficulty = difficulty?.difficultyName ?? raw.selectedDifficulty;
+      if (active) {
+        raw.selectedBenchmark = active.benchmark;
+        raw.selectedDifficulty = active.difficulty;
+      }
       raw.lastBenchmarkSyncDate = clock().toISOString();
     });
     return messages.join(" · ");
+  }
+
+  // ---- Followed benchmarks -------------------------------------------------------------
+
+  /** Saves the followed list (plus extra refs) so switching never drops the previous benchmark. */
+  function rememberTracked(...extra: TrackedRef[]) {
+    const refs = [...trackedRefs(legacy, store), ...extra];
+    const seen = new Set<string>();
+    const tracked = refs.filter((ref) => {
+      const id = trackedId(ref.benchmark, ref.difficulty);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    writeStore({ tracked });
+  }
+
+  function select(ref: TrackedRef) {
+    rememberTracked(ref);
+    writeLegacy((raw) => {
+      raw.selectedBenchmark = ref.benchmark;
+      raw.selectedDifficulty = ref.difficulty;
+    });
   }
 
   // ---- Backup ------------------------------------------------------------------------
@@ -271,14 +383,23 @@ export function createBrowserData({
     if (!parsed || typeof parsed !== "object" || (!Array.isArray(parsed.csvRecords) && !Array.isArray(parsed.manualRecords))) {
       throw new Error("不是可识别的备份文件");
     }
+    await ready;
     const state = normalizeState(parsed, benchmarkFallback);
     const { newUi, ...classic } = parsed;
-    storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ ...classic, ...state }));
-    if (newUi) storage.setItem(APP_STORAGE_KEY, JSON.stringify(newUi));
-    legacy = loadState(LEGACY_STORAGE_KEY, benchmarkFallback, storage);
-    store = parseAppStore(storage.getItem(APP_STORAGE_KEY));
+    const runs = state.csvRecords.map(compactRecord);
+    await recordStore.replaceAll(runs);
+    csvRecords = runs;
+    // Runs live in the record store; keep localStorage small.
+    try {
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ ...classic, ...state, csvRecords: [] }));
+      if (newUi) storage.setItem(APP_STORAGE_KEY, JSON.stringify(newUi));
+    } catch {
+      storageWarning = STORAGE_FULL;
+    }
+    legacy = normalizeState({ ...state, csvRecords: [] }, benchmarkFallback);
+    store = newUi ? parseAppStore(JSON.stringify(newUi)) : store;
     rebuild();
-    return `已恢复 ${state.csvRecords.length + state.manualRecords.length} 局成绩`;
+    return `已恢复 ${runs.length + state.manualRecords.length} 局成绩`;
   }
 
   return {
@@ -331,9 +452,38 @@ export function createBrowserData({
       });
     },
     setDifficulty(difficulty) {
-      writeLegacy((raw) => {
-        raw.selectedDifficulty = difficulty;
-      });
+      const active = activeRef(legacy);
+      if (active) select({ benchmark: active.benchmark, difficulty });
+    },
+    selectTracked(id) {
+      const ref = trackedRefs(legacy, store).find((item) => trackedId(item.benchmark, item.difficulty) === id);
+      if (ref) select(ref);
+    },
+    reorderTracked(ids) {
+      const refs = trackedRefs(legacy, store);
+      const byId = new Map(refs.map((ref) => [trackedId(ref.benchmark, ref.difficulty), ref]));
+      const ordered = ids.map((id) => byId.get(id)).filter((ref): ref is TrackedRef => Boolean(ref));
+      const rest = refs.filter((ref) => !ids.includes(trackedId(ref.benchmark, ref.difficulty)));
+      writeStore({ tracked: [...ordered, ...rest] });
+    },
+    setTracked(benchmark, difficulty, tracked) {
+      const id = trackedId(benchmark, difficulty);
+      if (tracked) {
+        rememberTracked({ benchmark, difficulty });
+        return;
+      }
+      const remaining = trackedRefs(legacy, store).filter((ref) => trackedId(ref.benchmark, ref.difficulty) !== id);
+      if (!remaining.length) return; // Always keep at least one.
+      const active = activeRef(legacy);
+      if (active && trackedId(active.benchmark, active.difficulty) === id) {
+        // Switch first, otherwise the still-active benchmark would be re-added to the list.
+        const next = remaining[0];
+        writeLegacy((raw) => {
+          raw.selectedBenchmark = next.benchmark;
+          raw.selectedDifficulty = next.difficulty;
+        });
+      }
+      writeStore({ tracked: remaining });
     },
     updateDay(dayKey, patch) {
       if (patch.note !== undefined) {
@@ -374,14 +524,11 @@ export function createBrowserData({
     syncBenchmark,
     selectBenchmark(name) {
       const benchmark = legacy.benchmarks.find((item) => item.benchmarkName === name);
-      if (!benchmark) return;
-      writeLegacy((raw) => {
-        raw.selectedBenchmark = name;
-        raw.selectedDifficulty = benchmark.difficulties?.[0]?.difficultyName ?? "";
-      });
+      const difficulty = benchmark?.difficulties?.[0]?.difficultyName;
+      if (benchmark && difficulty) select({ benchmark: name, difficulty });
     },
     importBackup,
-    backup: () => backupOf(storage),
+    backup: () => ({ ...(backupOf(storage) as Record<string, unknown>), csvRecords }),
   };
 }
 

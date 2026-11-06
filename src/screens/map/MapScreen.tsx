@@ -171,7 +171,7 @@ function ScenarioRow({ scenario, styles, selected }: { scenario: MapScenarioView
         </span>
         <span style={{ fontSize: 12, fontWeight: 600, color: rankStyle.ink, whiteSpace: "nowrap" }}>{scenario.rank.name}</span>
       </span>
-      <RankLadder thresholds={scenario.thresholds} styles={styles} score={scenario.personalBest} stableProgress={scenario.stableProgress} size="sm" />
+      <RankLadder thresholds={scenario.thresholds} styles={styles} score={scenario.personalBest} stableProgress={scenario.stableProgress} size="sm" currentIndex={scenario.rank.index} />
       <span className="map-row__bottom mono">
         <span>
           PB {fmtScore(scenario.personalBest)}

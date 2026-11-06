@@ -3,11 +3,27 @@ import { useTrackerData } from "./data.tsx";
 import { routeHref } from "./router.ts";
 import { useAction } from "./useAction.ts";
 
+/** Shown when something could not be saved (e.g. browser storage is full). */
+export function StorageWarning({ snapshot }: { snapshot: TrackerSnapshot }) {
+  if (!snapshot.storageWarning) return null;
+  return (
+    <section className="data-notice data-notice--warn" role="alert">
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 320px" }}>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>有数据没有保存</span>
+        <span className="small muted">{snapshot.storageWarning}</span>
+      </div>
+      <a className="btn-secondary" style={{ display: "inline-flex", alignItems: "center" }} href={routeHref("data")}>
+        去导出备份
+      </a>
+    </section>
+  );
+}
+
 /** First-run guidance for the browser source: pick the stats folder, then sync thresholds. */
 export function DataNotice({ snapshot }: { snapshot: TrackerSnapshot }) {
   const data = useTrackerData();
   const [run, busy, message] = useAction();
-  if (snapshot.source !== "browser") return null;
+  if (snapshot.source !== "browser" || snapshot.loading) return null;
   const noRuns = snapshot.records.length === 0;
   const noThresholds = snapshot.benchmark.scenarios.length === 0;
   if (!noRuns && !noThresholds) return null;
