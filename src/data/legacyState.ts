@@ -7,7 +7,7 @@ import type { ScenarioAliases } from "../domain/screens/data.ts";
 import { defaultScreenSettings, type ScreenSettings } from "../domain/screens/shared.ts";
 import type { TodayPlanItem } from "../domain/screens/today.ts";
 import type { AppState, Benchmark, DailyReviewEntry } from "../domain/types.ts";
-import { defaultPreferences, type AppPreferences, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type TrackerSnapshot } from "./trackerData.ts";
+import { defaultPreferences, trackedId, type AppPreferences, type CatalogEntry, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type TrackedBenchmark, type TrackerSnapshot } from "./trackerData.ts";
 
 /** localStorage key the classic app reads and writes. */
 export const LEGACY_STORAGE_KEY = "kovaak-benchmark-tracker-v2";
@@ -24,6 +24,13 @@ export interface AppStore {
   moods: Record<string, Partial<Record<MoodKey, string>>>;
   /** Stats files that could not be imported, with the reason. */
   failedImports: FailedImport[];
+  /** Followed benchmark difficulties, in sidebar order. */
+  tracked: TrackedRef[];
+}
+
+export interface TrackedRef {
+  benchmark: string;
+  difficulty: string;
 }
 
 export const emptyAppStore: AppStore = {
@@ -33,6 +40,7 @@ export const emptyAppStore: AppStore = {
   preferences: { ...defaultPreferences },
   moods: {},
   failedImports: [],
+  tracked: [],
 };
 
 const STABLE_WINDOWS: StableWindow[] = ["last10", "last20", "week"];
@@ -68,6 +76,9 @@ export function parseAppStore(raw: string | null): AppStore {
       theme: "light",
     },
     moods: source.moods && typeof source.moods === "object" ? { ...source.moods } : {},
+    tracked: Array.isArray(source.tracked)
+      ? source.tracked.filter((item) => item && typeof item.benchmark === "string" && typeof item.difficulty === "string").map((item) => ({ benchmark: item.benchmark, difficulty: item.difficulty }))
+      : [],
     failedImports: Array.isArray(source.failedImports)
       ? source.failedImports.filter((item) => item && typeof item.fileName === "string").map((item) => ({ fileName: item.fileName, reason: String(item.reason ?? "") }))
       : [],
@@ -79,6 +90,51 @@ function selectedDifficulty(state: AppState): { benchmark: Benchmark | undefined
   const difficulties = benchmark?.difficulties ?? [];
   const difficulty = difficulties.find((item) => item.difficultyName === state.selectedDifficulty) ?? difficulties[0];
   return { benchmark, difficulty };
+}
+
+export function catalogOf(state: AppState): CatalogEntry[] {
+  return state.benchmarks.map((benchmark) => ({
+    benchmark: benchmark.benchmarkName,
+    difficulties: (benchmark.difficulties ?? []).map((item) => item.difficultyName),
+  }));
+}
+
+/** The active benchmark as a reference, or null when nothing is selectable. */
+export function activeRef(state: AppState): TrackedRef | null {
+  const { benchmark, difficulty } = selectedDifficulty(state);
+  return benchmark && difficulty ? { benchmark: benchmark.benchmarkName, difficulty: difficulty.difficultyName } : null;
+}
+
+/** Saved order, limited to benchmarks that still exist, with the active one appended if missing. */
+export function trackedRefs(state: AppState, store: AppStore): TrackedRef[] {
+  const exists = (ref: TrackedRef) =>
+    state.benchmarks.some((benchmark) => benchmark.benchmarkName === ref.benchmark && (benchmark.difficulties ?? []).some((item) => item.difficultyName === ref.difficulty));
+  const seen = new Set<string>();
+  const refs = store.tracked.filter((ref) => {
+    const id = trackedId(ref.benchmark, ref.difficulty);
+    if (seen.has(id) || !exists(ref)) return false;
+    seen.add(id);
+    return true;
+  });
+  const active = activeRef(state);
+  if (active && !seen.has(trackedId(active.benchmark, active.difficulty))) refs.push(active);
+  return refs;
+}
+
+function trackedOf(state: AppState, store: AppStore): TrackedBenchmark[] {
+  const active = activeRef(state);
+  return trackedRefs(state, store).map((ref) => {
+    const difficulty = state.benchmarks.find((item) => item.benchmarkName === ref.benchmark)?.difficulties?.find((item) => item.difficultyName === ref.difficulty);
+    const id = trackedId(ref.benchmark, ref.difficulty);
+    return {
+      id,
+      benchmark: ref.benchmark,
+      difficulty: ref.difficulty,
+      scenarios: (difficulty?.scenarios ?? []).filter((scenario) => (scenario.rankMaxes?.length ?? 0) > 0),
+      rankColors: difficulty?.rankColors ?? {},
+      active: active !== null && id === trackedId(active.benchmark, active.difficulty),
+    };
+  });
 }
 
 function newestDate(dates: string[]): string | null {
@@ -123,6 +179,8 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, 
       rankColors: difficulty?.rankColors ?? {},
       syncedAt: state.lastBenchmarkSyncDate || difficulty?.apiUpdatedAt || null,
     },
+    tracked: trackedOf(state, store),
+    catalog: catalogOf(state),
     records,
     exclusions: state.recordExclusions,
     aliases: store.aliases,

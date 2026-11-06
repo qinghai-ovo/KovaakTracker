@@ -9,9 +9,9 @@ import { filesFromStatsDirectory, parseCsvFiles, type CsvReadableFile } from "..
 import { loadState, normalizeState, type StorageLike } from "../services/storage.ts";
 import { benchmarkFallback } from "./benchmarkFallback.ts";
 import { importedFileNames, importMessage, mergeImport } from "./importLogic.ts";
-import { APP_STORAGE_KEY, LEGACY_STORAGE_KEY, parseAppStore, snapshotFromLegacy, withDayNote, type AppStore } from "./legacyState.ts";
+import { activeRef, APP_STORAGE_KEY, LEGACY_STORAGE_KEY, parseAppStore, snapshotFromLegacy, trackedRefs, withDayNote, type AppStore, type TrackedRef } from "./legacyState.ts";
 import { folderPermission, folderPickerSupported, pickStatsFolder, rememberedStatsFolder } from "./statsFolder.ts";
-import type { FolderAccess, ManualRunInput, TrackerData, TrackerEvent, TrackerSnapshot } from "./trackerData.ts";
+import { trackedId, type FolderAccess, type ManualRunInput, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
 
 const EVXL_BENCHMARK_URL = "https://evxl.app/benchmarks/Viscose%20Benchmarks%20S2";
 /** Any Steam id works for reading thresholds; this is the one the classic app uses. */
@@ -235,33 +235,63 @@ export function createBrowserData({
       if (error instanceof LocalDevProxyUnavailableError) return "在线同步需要用 start-dev.bat 打开 http://127.0.0.1:5173/app.html";
       messages.push("EVXL 列表更新失败，沿用已有清单");
     }
-    const benchmark = benchmarks.find((item) => item.benchmarkName === legacy.selectedBenchmark) ?? benchmarks[0];
-    const difficulty = benchmark?.difficulties?.find((item) => item.difficultyName === legacy.selectedDifficulty) ?? benchmark?.difficulties?.[0];
-    if (benchmark && difficulty?.kovaaksBenchmarkId) {
+    // Thresholds for every followed difficulty, so switching in the sidebar works offline.
+    const targets = trackedRefs({ ...legacy, benchmarks }, store);
+    const synced: string[] = [];
+    for (const ref of targets) {
+      const difficulty = benchmarks.find((item) => item.benchmarkName === ref.benchmark)?.difficulties?.find((item) => item.difficultyName === ref.difficulty);
+      if (!difficulty?.kovaaksBenchmarkId) continue;
       try {
         const scenarios = await fetchKovaakBenchmarkDetails({ benchmarkId: difficulty.kovaaksBenchmarkId, steamId: THRESHOLD_STEAM_ID, fetchImpl });
         benchmarks = benchmarks.map((item) =>
-          item.benchmarkName !== benchmark.benchmarkName
+          item.benchmarkName !== ref.benchmark
             ? item
             : {
                 ...item,
                 difficulties: (item.difficulties || []).map((entry) =>
-                  entry.difficultyName === difficulty.difficultyName ? { ...entry, scenarios, apiUpdatedAt: clock().toISOString() } : entry,
+                  entry.difficultyName === ref.difficulty ? { ...entry, scenarios, apiUpdatedAt: clock().toISOString() } : entry,
                 ),
               },
         );
-        messages.push(`${difficulty.difficultyName} · ${scenarios.length} 个场景的段位线`);
+        synced.push(`${ref.difficulty} · ${scenarios.length} 个场景`);
       } catch {
-        messages.push(`读取 ${difficulty.difficultyName} 段位线失败，可稍后重试`);
+        messages.push(`读取 ${ref.difficulty} 段位线失败，可稍后重试`);
       }
     }
+    if (synced.length) messages.push(`段位线：${synced.join("，")}`);
+    const active = activeRef({ ...legacy, benchmarks });
     writeLegacy((raw) => {
       raw.benchmarks = benchmarks;
-      raw.selectedBenchmark = benchmark?.benchmarkName ?? raw.selectedBenchmark;
-      raw.selectedDifficulty = difficulty?.difficultyName ?? raw.selectedDifficulty;
+      if (active) {
+        raw.selectedBenchmark = active.benchmark;
+        raw.selectedDifficulty = active.difficulty;
+      }
       raw.lastBenchmarkSyncDate = clock().toISOString();
     });
     return messages.join(" · ");
+  }
+
+  // ---- Followed benchmarks -------------------------------------------------------------
+
+  /** Saves the followed list (plus extra refs) so switching never drops the previous benchmark. */
+  function rememberTracked(...extra: TrackedRef[]) {
+    const refs = [...trackedRefs(legacy, store), ...extra];
+    const seen = new Set<string>();
+    const tracked = refs.filter((ref) => {
+      const id = trackedId(ref.benchmark, ref.difficulty);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    writeStore({ tracked });
+  }
+
+  function select(ref: TrackedRef) {
+    rememberTracked(ref);
+    writeLegacy((raw) => {
+      raw.selectedBenchmark = ref.benchmark;
+      raw.selectedDifficulty = ref.difficulty;
+    });
   }
 
   // ---- Backup ------------------------------------------------------------------------
@@ -331,9 +361,38 @@ export function createBrowserData({
       });
     },
     setDifficulty(difficulty) {
-      writeLegacy((raw) => {
-        raw.selectedDifficulty = difficulty;
-      });
+      const active = activeRef(legacy);
+      if (active) select({ benchmark: active.benchmark, difficulty });
+    },
+    selectTracked(id) {
+      const ref = trackedRefs(legacy, store).find((item) => trackedId(item.benchmark, item.difficulty) === id);
+      if (ref) select(ref);
+    },
+    reorderTracked(ids) {
+      const refs = trackedRefs(legacy, store);
+      const byId = new Map(refs.map((ref) => [trackedId(ref.benchmark, ref.difficulty), ref]));
+      const ordered = ids.map((id) => byId.get(id)).filter((ref): ref is TrackedRef => Boolean(ref));
+      const rest = refs.filter((ref) => !ids.includes(trackedId(ref.benchmark, ref.difficulty)));
+      writeStore({ tracked: [...ordered, ...rest] });
+    },
+    setTracked(benchmark, difficulty, tracked) {
+      const id = trackedId(benchmark, difficulty);
+      if (tracked) {
+        rememberTracked({ benchmark, difficulty });
+        return;
+      }
+      const remaining = trackedRefs(legacy, store).filter((ref) => trackedId(ref.benchmark, ref.difficulty) !== id);
+      if (!remaining.length) return; // Always keep at least one.
+      const active = activeRef(legacy);
+      if (active && trackedId(active.benchmark, active.difficulty) === id) {
+        // Switch first, otherwise the still-active benchmark would be re-added to the list.
+        const next = remaining[0];
+        writeLegacy((raw) => {
+          raw.selectedBenchmark = next.benchmark;
+          raw.selectedDifficulty = next.difficulty;
+        });
+      }
+      writeStore({ tracked: remaining });
     },
     updateDay(dayKey, patch) {
       if (patch.note !== undefined) {
@@ -374,11 +433,8 @@ export function createBrowserData({
     syncBenchmark,
     selectBenchmark(name) {
       const benchmark = legacy.benchmarks.find((item) => item.benchmarkName === name);
-      if (!benchmark) return;
-      writeLegacy((raw) => {
-        raw.selectedBenchmark = name;
-        raw.selectedDifficulty = benchmark.difficulties?.[0]?.difficultyName ?? "";
-      });
+      const difficulty = benchmark?.difficulties?.[0]?.difficultyName;
+      if (benchmark && difficulty) select({ benchmark: name, difficulty });
     },
     importBackup,
     backup: () => backupOf(storage),

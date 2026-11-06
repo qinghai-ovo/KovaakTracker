@@ -4,6 +4,7 @@ import type { SuspiciousPolicy } from "../../domain/exclusions.ts";
 import type { OverallRankRule } from "../../domain/category.ts";
 import type { SetupProfile } from "../../domain/types.ts";
 import { useSnapshot, useTrackerData } from "../../app/data.tsx";
+import { trackedId } from "../../data/trackerData.ts";
 import { useAction } from "../../app/useAction.ts";
 import { ensureNotificationPermission } from "../../app/useRunNotifications.ts";
 import { routeHref } from "../../app/router.ts";
@@ -54,7 +55,34 @@ export function SettingsScreen() {
               ))}
             </select>
           </SettingRow>
-          <SettingRow label="难度" help="切换后段位按新难度的分数线重新计算">
+          <SettingRow label="侧栏里追踪" help="勾选要追踪的难度，它们会列在侧栏里，点一下即可切换；在侧栏拖动调整顺序">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+              {snapshot.catalog.map((entry) => (
+                <div key={entry.benchmark} role="group" aria-label={`${entry.benchmark} 的难度`} style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+                  {snapshot.catalog.length > 1 ? <span className="small muted" style={{ marginRight: 4 }}>{entry.benchmark}</span> : null}
+                  {entry.difficulties.map((difficulty) => {
+                    const id = trackedId(entry.benchmark, difficulty);
+                    const on = snapshot.tracked.some((item) => item.id === id);
+                    const last = on && snapshot.tracked.length === 1;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={on}
+                        disabled={last}
+                        title={last ? "至少要追踪一个" : undefined}
+                        onClick={() => data.setTracked(entry.benchmark, difficulty, !on)}
+                      >
+                        {difficulty}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </SettingRow>
+          <SettingRow label="当前显示" help="各页面按这个难度的分数线计算段位">
             <Segmented label="难度" value={benchmark.difficulty} options={benchmark.difficulties.map((value) => ({ value, label: value }))} onChange={(value) => data.setDifficulty(value)} />
           </SettingRow>
           <SettingRow

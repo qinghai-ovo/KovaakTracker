@@ -13,6 +13,25 @@
 .nav__link[aria-current="page"] svg { stroke: var(--accent); }
 .nav__divider { height: 1px; margin: 8px 12px; background: var(--line); }
 .nav__bench { display: flex; flex-direction: column; gap: 10px; padding: 0 12px; }
+
+.tracked { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tracked__item { position: relative; display: flex; align-items: stretch; border-radius: 10px; }
+.tracked__item:hover { background: var(--surface-muted); }
+.tracked__item.is-active { background: #eef5f7; box-shadow: inset 0 0 0 1px rgba(14, 116, 144, 0.22); }
+.tracked__item.is-dragging { opacity: 0.45; }
+.tracked__item.drop-before::before, .tracked__item.drop-after::after { content: ""; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent); }
+.tracked__item.drop-before::before { top: -3px; }
+.tracked__item.drop-after::after { bottom: -3px; }
+.tracked__item[draggable="true"] { cursor: grab; }
+.tracked__item[draggable="true"]:active { cursor: grabbing; }
+.tracked__grip { display: grid; place-items: center; width: 16px; margin-left: 2px; color: var(--faint); opacity: 0; transition: opacity 0.12s; }
+.tracked__item:hover .tracked__grip, .tracked__item:focus-within .tracked__grip, .tracked__item.is-dragging .tracked__grip { opacity: 1; }
+.tracked__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 8px 10px 6px; border-radius: 10px; }
+.tracked__item:not(:has(.tracked__grip)) .tracked__body { padding-left: 8px; }
+.tracked__name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracked .nav__row > * { white-space: nowrap; }
+.tracked .nav__row > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (hover: none) { .tracked__grip { opacity: 1; } }
 .nav__row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .nav__live { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 14px 12px; border-radius: 12px; background: var(--surface-muted); }
 
@@ -82,6 +101,11 @@ a.btn-primary:hover { color: #fff; }
 .setting-row__label { font-size: 14px; font-weight: 500; }
 .setting-row__help { font-size: 12px; color: var(--muted); line-height: 1.5; }
 .setting-row__control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---- Chips ------------------------------------------------------------ */
+.chip { min-height: 32px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(15, 22, 38, 0.16); font-size: 13px; color: var(--text-2); }
+.chip:hover { border-color: var(--text-2); }
+.chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
 
 /* ---- Rank bars --------------------------------------------------------- */
 .rank-ladder { position: relative; display: flex; width: 100%; }

@@ -16,6 +16,28 @@ export interface BenchmarkInfo {
   syncedAt: string | null;
 }
 
+/** One benchmark difficulty the player follows; shown in the sidebar in the player's order. */
+export interface TrackedBenchmark {
+  id: string;
+  benchmark: string;
+  difficulty: string;
+  /** Scenarios with rank thresholds (empty until synced). */
+  scenarios: BenchmarkScenario[];
+  rankColors: Record<string, string>;
+  /** The benchmark every screen currently shows. */
+  active: boolean;
+}
+
+/** Every benchmark and difficulty the source knows, for the Settings picker. */
+export interface CatalogEntry {
+  benchmark: string;
+  difficulties: string[];
+}
+
+export function trackedId(benchmark: string, difficulty: string): string {
+  return `${benchmark}::${difficulty}`;
+}
+
 /** Preferences that change behavior or display but not training rules. */
 export interface AppPreferences {
   autoImport: boolean;
@@ -52,6 +74,9 @@ export interface TrackerSnapshot {
   /** fixture: built-in sample data; browser: the classic app's saved data in this browser; tauri: desktop backend. */
   source: "fixture" | "browser" | "tauri";
   benchmark: BenchmarkInfo;
+  /** Followed benchmarks in the player's order; always includes the active one. */
+  tracked: TrackedBenchmark[];
+  catalog: CatalogEntry[];
   records: ScoreRecord[];
   exclusions: Record<string, RecordExclusion>;
   aliases: ScenarioAliases;
@@ -103,6 +128,12 @@ export interface TrackerData {
   updatePreferences(patch: Partial<AppPreferences>): void;
   updateSetup(patch: Partial<SetupProfile>): void;
   setDifficulty(difficulty: string): void;
+  /** Make a followed benchmark the active one. */
+  selectTracked(id: string): void;
+  /** New order of the followed benchmarks (ids from snapshot.tracked). */
+  reorderTracked(ids: string[]): void;
+  /** Follow or stop following a benchmark difficulty. */
+  setTracked(benchmark: string, difficulty: string, tracked: boolean): void;
   updateDay(dayKey: string, patch: Partial<DayEntry>): void;
 
   /** Demo only: pretend a run was just finished in KovaaK. */

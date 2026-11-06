@@ -126,7 +126,7 @@ test("benchmark sync keeps the list when EVXL fails and stores the KovaaK thresh
   const data = createBrowserData({ storage, clock, watch: false, folderApi: fakeFolder([]), fetchImpl });
   const message = await data.syncBenchmark!();
   assert.match(message, /EVXL 列表更新失败/);
-  assert.match(message, /Easier · 2 个场景的段位线/);
+  assert.match(message, /段位线：Easier · 2 个场景/);
   const snapshot = data.getSnapshot();
   assert.deepEqual(snapshot.benchmark.scenarios.map((scenario) => scenario.name).sort(), ["Air Angelic", "Smoothbot Arm"]);
   assert.deepEqual(snapshot.benchmark.scenarios.find((scenario) => scenario.name === "Smoothbot Arm")!.rankMaxes, [2100, 2300]);

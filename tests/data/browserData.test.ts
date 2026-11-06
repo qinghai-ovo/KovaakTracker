@@ -131,3 +131,32 @@ test("broken or missing app store falls back to defaults", () => {
   assert.equal(store.settings.stableWindow, "last10");
   assert.deepEqual(store.plan, [{ scenarioName: "A", targetRuns: 3 }, { scenarioName: "B", targetRuns: 5 }], "invalid targets fall back to 3");
 });
+
+test("followed benchmarks: switch, reorder and unfollow keep a stable list", () => {
+  const storage = memoryStorage({ [LEGACY_STORAGE_KEY]: JSON.stringify(classicState()) });
+  const data = createBrowserData({ storage, clock: now, watch: false });
+  const ids = () => data.getSnapshot().tracked.map((entry) => `${entry.difficulty}${entry.active ? "*" : ""}`);
+
+  assert.deepEqual(ids(), ["Easier*"], "the active benchmark is always listed");
+  assert.deepEqual(data.getSnapshot().catalog, [{ benchmark: "Viscose Benchmarks S2", difficulties: ["Easier", "Medium"] }]);
+
+  data.setDifficulty("Medium");
+  assert.deepEqual(ids(), ["Easier", "Medium*"], "switching keeps the previous one");
+  assert.equal(data.getSnapshot().tracked[1].scenarios.length, 1);
+
+  const [easier, medium] = data.getSnapshot().tracked.map((entry) => entry.id);
+  data.reorderTracked([medium, easier]);
+  assert.deepEqual(ids(), ["Medium*", "Easier"]);
+
+  data.selectTracked(easier);
+  assert.deepEqual(ids(), ["Medium", "Easier*"]);
+  assert.equal(data.getSnapshot().benchmark.difficulty, "Easier");
+
+  data.setTracked("Viscose Benchmarks S2", "Easier", false);
+  assert.deepEqual(ids(), ["Medium*"], "unfollowing the active one switches to the next");
+  data.setTracked("Viscose Benchmarks S2", "Medium", false);
+  assert.deepEqual(ids(), ["Medium*"], "the last one cannot be unfollowed");
+
+  const reopened = createBrowserData({ storage, clock: now, watch: false });
+  assert.deepEqual(reopened.getSnapshot().tracked.map((entry) => entry.difficulty), ["Medium"], "the list survives a reload");
+});
