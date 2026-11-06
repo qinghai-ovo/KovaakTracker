@@ -1,7 +1,33 @@
+import { isTauri } from "@tauri-apps/api/core";
 import type { TrackerSnapshot } from "../data/trackerData.ts";
 import { useTrackerData } from "./data.tsx";
 import { routeHref } from "./router.ts";
 import { useAction } from "./useAction.ts";
+
+/** Shown on every page while the sample data is on screen, so made-up thresholds aren't read as real. */
+export function SampleDataNotice({ snapshot }: { snapshot: TrackerSnapshot }) {
+  if (snapshot.source !== "fixture") return null;
+  const desktop = isTauri();
+  return (
+    <section className="data-notice data-notice--sample" role="note" aria-label="示例数据">
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 320px" }}>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>示例数据：场景、分数和段位线都是虚构的</span>
+        <span className="small muted">
+          {desktop ? "桌面版还没接入你的成绩和段位线（开发中）。真实数据请先用浏览器版查看。" : "这里不是你的成绩，也不是 benchmark 的真实段位线。"}
+        </span>
+      </div>
+      {desktop ? null : (
+        <a
+          className="btn-secondary"
+          style={{ display: "inline-flex", alignItems: "center" }}
+          href={`${window.location.pathname}${window.location.hash}`}
+        >
+          看我的数据
+        </a>
+      )}
+    </section>
+  );
+}
 
 /** Shown when something could not be saved (e.g. browser storage is full). */
 export function StorageWarning({ snapshot }: { snapshot: TrackerSnapshot }) {
