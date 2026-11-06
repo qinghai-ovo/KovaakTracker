@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "tauri": "tauri",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b && tsc -p tsconfig.test.json",
     "test": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"tests/**/*.test.ts\"",
@@ -13,11 +14,17 @@
     "capture:ui-qa": "node scripts/capture-ui-qa.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource-variable/noto-sans-sc": "^5.3.1",
+    "@fontsource-variable/unbounded": "^5.3.0",
+    "@tauri-apps/api": "^2.12.4",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^24.19.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

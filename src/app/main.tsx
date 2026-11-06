@@ -1,15 +1,17 @@
+import { isTauri } from "@tauri-apps/api/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserData } from "../data/browserData.ts";
 import { createFixtureData } from "../data/fixtureData.ts";
+import "../ui/fonts.ts";
 import "../ui/tokens.css";
 import "../ui/ui.css";
 import { App } from "./App.tsx";
 import { TrackerDataProvider } from "./data.tsx";
 
-// Real data saved by the classic app in this browser; add ?demo to the address for the sample data.
-// The Tauri backend replaces the browser source in phase 1.
-const demo = new URLSearchParams(window.location.search).has("demo");
+// In the browser: real data saved by the classic app; add ?demo to the address for the sample data.
+// In the desktop app: sample data until the Tauri data source lands (roadmap M2d).
+const demo = isTauri() || new URLSearchParams(window.location.search).has("demo");
 const data = demo ? createFixtureData() : createBrowserData();
 
 const root = document.getElementById("root");

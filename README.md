@@ -19,6 +19,7 @@ A local-first app for tracking KovaaK benchmark scores, ranks, and training prog
 
 - TypeScript and React 19
 - Vite
+- Tauri 2 desktop shell (Rust)
 - CSS and Lucide icons
 - Canvas charts
 - Browser localStorage for tracker data
@@ -35,6 +36,16 @@ npm run dev
 
 Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/).
 
+### Desktop app (in development)
+
+Requires Rust (stable, MSVC) and the Visual Studio C++ build tools. Windows 11 already includes WebView2.
+
+```powershell
+npm run tauri dev
+```
+
+Or double-click `start-desktop.bat`, which uses the project-local Node. The desktop app shows sample data until its own data source is in place.
+
 ## Commands
 
 | Command | Purpose |
@@ -46,6 +57,8 @@ Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/).
 | `npm run check:react-parity` | Check React data calculations and storage behavior. |
 | `npm run capture:ui-qa` | Capture UI screenshots. |
 | `npm run build` | Build the app into `dist/`. |
+| `npm run tauri dev` | Run the desktop app in development mode. |
+| `npm run tauri build` | Build the desktop app and its Windows installer. |
 
 ## Layout
 
