@@ -34,11 +34,34 @@ export function fmtShortDay(dayKey: string): string {
   return `${month}月${day}日`;
 }
 
-export function fmtClock(localIso: string): string {
-  return localIso.slice(11, 16);
+const pad2 = (value: number) => String(value).padStart(2, "0");
+
+/** Local "HH:MM" of a timestamp; works for local ISO strings and UTC ("…Z") strings alike. */
+export function fmtClock(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+/** Local "MM-DD" of a timestamp. */
+export function fmtMonthDay(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : `${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/** Local "11月3日 09:12" of a timestamp. */
+export function fmtDateTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : `${date.getMonth() + 1}月${date.getDate()}日 ${fmtClock(value)}`;
 }
 
 /** "VT Smoothbot Arm Easy" → "Smoothbot Arm" (only when the user turned on short names). */
 export function shortScenarioName(name: string): string {
   return name.replace(/^VT\s+/i, "").replace(/\s+(Easier|Easy|Medium|Hard|Harder)$/i, "").trim() || name;
+}
+
+/** Short label of where the data comes from, shown next to import status. */
+export function sourceLabel(source: "fixture" | "browser" | "tauri"): string {
+  if (source === "fixture") return " · 示例数据";
+  if (source === "browser") return " · 浏览器里的数据";
+  return "";
 }

@@ -15,7 +15,9 @@ import {
   rankColors,
   unmatchedRecords,
 } from "./fixtures/designSample.ts";
-import { defaultPreferences, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
+import { defaultPreferences, trackedId, type TrackedBenchmark, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
+
+const DEMO_BENCHMARK = "Viscose S2";
 
 function localIso(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -34,17 +36,30 @@ export function createFixtureData(): TrackerData {
   const dataset = demoDataset();
   const baseScenarios = dataset.scenarios;
   let clock = new Date(NOW);
+  let trackedOrder = Object.keys(difficultyScale);
+  const trackedList = (active: string): TrackedBenchmark[] =>
+    trackedOrder.map((difficulty) => ({
+      id: trackedId(DEMO_BENCHMARK, difficulty),
+      benchmark: DEMO_BENCHMARK,
+      difficulty,
+      scenarios: scaleScenarios(baseScenarios, difficultyScale[difficulty]),
+      rankColors,
+      active: difficulty === active,
+    }));
   const records = [...backgroundSessions(), ...unmatchedRecords(), ...dataset.records, MANUAL_RECORD, IGNORED_RECORD];
   let snapshot: TrackerSnapshot = {
     source: "fixture",
     benchmark: {
-      name: "Viscose S2",
+      name: DEMO_BENCHMARK,
+      available: [DEMO_BENCHMARK],
       difficulty: "Easier",
       difficulties: Object.keys(difficultyScale),
       scenarios: baseScenarios,
       rankColors,
       syncedAt: "2026-11-03T09:12:00",
     },
+    tracked: trackedList("Easier"),
+    catalog: [{ benchmark: DEMO_BENCHMARK, difficulties: Object.keys(difficultyScale) }],
     records,
     exclusions: excludeRecordManually(IGNORED_RECORD, {}, "", "2026-11-02T21:00:00.000Z"),
     aliases: {},
@@ -58,6 +73,10 @@ export function createFixtureData(): TrackerData {
     now: clock,
     lastImportAt: "19:49",
     watching: true,
+    folderAccess: "unsupported",
+    loading: false,
+    storageWarning: null,
+    importProgress: null,
   };
   const listeners = new Set<() => void>();
   const eventListeners = new Set<(event: TrackerEvent) => void>();
@@ -68,6 +87,13 @@ export function createFixtureData(): TrackerData {
   }
 
   const stamp = () => clock.toISOString();
+
+  function selectDifficulty(difficulty: string) {
+    const factor = difficultyScale[difficulty];
+    if (!factor) return;
+    if (!trackedOrder.includes(difficulty)) trackedOrder = [...trackedOrder, difficulty];
+    update({ benchmark: { ...snapshot.benchmark, difficulty, scenarios: scaleScenarios(baseScenarios, factor) }, tracked: trackedList(difficulty) });
+  }
 
   return {
     getSnapshot: () => snapshot,
@@ -112,10 +138,26 @@ export function createFixtureData(): TrackerData {
     updateSetup(patch) {
       update({ setup: { ...snapshot.setup, ...patch } });
     },
-    setDifficulty(difficulty) {
-      const factor = difficultyScale[difficulty];
-      if (!factor) return;
-      update({ benchmark: { ...snapshot.benchmark, difficulty, scenarios: scaleScenarios(baseScenarios, factor) } });
+    setDifficulty: selectDifficulty,
+    selectTracked(id) {
+      const entry = snapshot.tracked.find((item) => item.id === id);
+      if (entry) selectDifficulty(entry.difficulty);
+    },
+    reorderTracked(ids) {
+      const byId = new Map(snapshot.tracked.map((item) => [item.id, item.difficulty]));
+      const ordered = ids.map((id) => byId.get(id)).filter((difficulty): difficulty is string => Boolean(difficulty));
+      trackedOrder = [...ordered, ...trackedOrder.filter((difficulty) => !ordered.includes(difficulty))];
+      update({ tracked: trackedList(snapshot.benchmark.difficulty) });
+    },
+    setTracked(_benchmark, difficulty, tracked) {
+      if (tracked) {
+        if (!trackedOrder.includes(difficulty)) trackedOrder = [...trackedOrder, difficulty];
+      } else {
+        if (trackedOrder.length <= 1) return;
+        trackedOrder = trackedOrder.filter((item) => item !== difficulty);
+        if (snapshot.benchmark.difficulty === difficulty) return selectDifficulty(trackedOrder[0]);
+      }
+      update({ tracked: trackedList(snapshot.benchmark.difficulty) });
     },
     updateDay(dayKey, patch) {
       const current = snapshot.days[dayKey] ?? { mood: {}, note: "" };

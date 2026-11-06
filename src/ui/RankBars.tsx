@@ -12,17 +12,24 @@ interface RankLadderProps {
   stableProgress?: number | null;
   markerColor?: string;
   size?: "lg" | "sm";
+  /** Highest rank reached (the PB rank); its segment is drawn taller with a ring. -1 or omitted: none. */
+  currentIndex?: number;
 }
 
 /** The rank bar, filled to the PB, with optional PB (filled) and stable (hollow) markers. */
-export function RankLadder({ thresholds, styles, score, pbProgress, stableProgress, markerColor, size = "lg" }: RankLadderProps) {
+export function RankLadder({ thresholds, styles, score, pbProgress, stableProgress, markerColor, size = "lg", currentIndex = -1 }: RankLadderProps) {
   return (
     <span className={`rank-ladder rank-ladder--${size}`}>
       {thresholds.map((threshold, index) => {
         const style = styles[index];
         const fill = score === null ? 0 : rankSegmentFill(score, thresholds, index);
         return (
-          <span key={`${index}-${threshold}`} className="rank-ladder__seg" style={{ background: withAlpha(style?.fill ?? "#E3E8F0", 0.25) }}>
+          <span
+            key={`${index}-${threshold}`}
+            className={index === currentIndex ? "rank-ladder__seg is-current" : "rank-ladder__seg"}
+            title={index === currentIndex ? `最高段位：${style?.name ?? ""}` : undefined}
+            style={{ background: withAlpha(style?.fill ?? "#E3E8F0", 0.25), "--ring": style?.ink ?? "var(--muted)" } as CSSProperties}
+          >
             <span className="rank-ladder__fill" style={{ width: `${fill}%`, background: style?.fill }} />
           </span>
         );
