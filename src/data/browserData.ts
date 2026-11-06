@@ -40,6 +40,13 @@ const browserFolderApi: StatsFolderApi = {
 
 const STORAGE_FULL = "浏览器存储空间不足，刚才的修改没有保存。请先导出备份。";
 
+/**
+ * The picker reports a refused read permission the same way as a cancel (AbortError), and some
+ * embedded browsers (e.g. the Claude app's browser pane) always refuse it — so don't claim the user cancelled.
+ */
+export const FOLDER_NOT_PICKED =
+  "没有拿到文件夹。如果你选了文件夹仍看到这条，说明这个浏览器不允许网页读取文件夹，请用 Chrome 或 Edge 打开 http://127.0.0.1:5173/app.html";
+
 type RawState = Partial<AppState> & Record<string, unknown>;
 
 interface BrowserDataOptions {
@@ -500,7 +507,7 @@ export function createBrowserData({
     async chooseStatsFolder() {
       if (!folderApi.supported()) return "这个浏览器不能选择文件夹，请用 Chrome 或 Edge，或改为选择 CSV 文件";
       const handle = await folderApi.pick();
-      if (!handle) return "已取消";
+      if (!handle) return FOLDER_NOT_PICKED;
       folder = handle;
       setAccess("ready");
       return readFolder(handle, false);

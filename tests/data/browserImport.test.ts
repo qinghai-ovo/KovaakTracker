@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createBrowserData, type StatsFolderApi } from "../../src/data/browserData.ts";
+import { createBrowserData, FOLDER_NOT_PICKED, type StatsFolderApi } from "../../src/data/browserData.ts";
 import { importedFileNames, mergeImport } from "../../src/data/importLogic.ts";
 import { APP_STORAGE_KEY, LEGACY_STORAGE_KEY, parseAppStore } from "../../src/data/legacyState.ts";
 import { rankColors, sampleThresholds } from "../../src/data/fixtures/designSample.ts";
@@ -103,6 +103,20 @@ test("choosing the stats folder imports runs into the record store", async () =>
   const full = await data.rescanStatsFolder!({ full: true });
   assert.match(full, /读取 3 个文件 · 新增 0 局/);
   assert.equal(data.getSnapshot().records.length, 2, "re-reading never duplicates runs");
+});
+
+test("a folder pick that comes back empty points to Chrome/Edge and changes nothing", async () => {
+  const storage = memoryStorage({ [LEGACY_STORAGE_KEY]: JSON.stringify(savedState()) });
+  const folder = fakeFolder([statsFile("Smoothbot Arm", 2740, "2026.11.05-19.31.00")]);
+  folder.pick = async () => null;
+  const data = createBrowserData({ storage, clock, watch: false, folderApi: folder });
+
+  const message = await data.chooseStatsFolder!();
+  assert.equal(message, FOLDER_NOT_PICKED);
+  assert.match(message, /Chrome 或 Edge/);
+  assert.equal(folder.reads, 0);
+  assert.equal(data.getSnapshot().records.length, 0);
+  assert.notEqual(data.getSnapshot().folderAccess, "ready");
 });
 
 test("backup round trip restores runs and the new UI's own state", async () => {
