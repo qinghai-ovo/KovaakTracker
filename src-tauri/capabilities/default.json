@@ -1,11 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "description": "Main window: core APIs, the stats folder picker, and benchmark threshold sync.",
+  "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "dialog:allow-open",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://evxl.app/*" }, { "url": "https://kovaaks.com/*" }]
+    }
   ]
 }

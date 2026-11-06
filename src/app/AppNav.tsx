@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core";
 import { sourceLabel } from "../ui/format.ts";
 import type { ReactNode } from "react";
 import type { TrackerSnapshot } from "../data/trackerData.ts";
@@ -105,7 +106,7 @@ export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
         </div>
         <span className="small muted">
           上次导入 {snapshot.lastImportAt ?? "—"}
-          {sourceLabel(snapshot.source)}
+          {sourceLabel(snapshot.source, isTauri())}
         </span>
       </div>
     </nav>
