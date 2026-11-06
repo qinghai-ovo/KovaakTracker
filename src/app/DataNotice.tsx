@@ -7,24 +7,15 @@ import { useAction } from "./useAction.ts";
 /** Shown on every page while the sample data is on screen, so made-up thresholds aren't read as real. */
 export function SampleDataNotice({ snapshot }: { snapshot: TrackerSnapshot }) {
   if (snapshot.source !== "fixture") return null;
-  const desktop = isTauri();
   return (
     <section className="data-notice data-notice--sample" role="note" aria-label="示例数据">
       <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 320px" }}>
         <span style={{ fontSize: 14, fontWeight: 600 }}>示例数据：场景、分数和段位线都是虚构的</span>
-        <span className="small muted">
-          {desktop ? "桌面版还没接入你的成绩和段位线（开发中）。真实数据请先用浏览器版查看。" : "这里不是你的成绩，也不是 benchmark 的真实段位线。"}
-        </span>
+        <span className="small muted">这里不是你的成绩，也不是 benchmark 的真实段位线。</span>
       </div>
-      {desktop ? null : (
-        <a
-          className="btn-secondary"
-          style={{ display: "inline-flex", alignItems: "center" }}
-          href={`${window.location.pathname}${window.location.hash}`}
-        >
-          看我的数据
-        </a>
-      )}
+      <a className="btn-secondary" style={{ display: "inline-flex", alignItems: "center" }} href={`${window.location.pathname}${window.location.hash}`}>
+        看我的数据
+      </a>
     </section>
   );
 }
@@ -55,15 +46,18 @@ export function DataNotice({ snapshot }: { snapshot: TrackerSnapshot }) {
   if (!noRuns && !noThresholds) return null;
 
   const canPick = snapshot.folderAccess !== "unsupported" && data.chooseStatsFolder;
+  const desktop = isTauri();
   return (
     <section className="data-notice" role="status">
       <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 320px" }}>
         <span style={{ fontSize: 14, fontWeight: 600 }}>{noThresholds ? "第一步：同步段位线" : "第二步：导入成绩"}</span>
         <span className="small muted">
           {noThresholds
-            ? "从 EVXL 和 KovaaK 读取 benchmark 的场景和段位线。需要用 start-dev.bat 打开的地址。"
+            ? desktop
+              ? "从 EVXL 和 KovaaK 读取 benchmark 的场景和段位线。"
+              : "从 EVXL 和 KovaaK 读取 benchmark 的场景和段位线。需要用 start-dev.bat 打开的地址。"
             : canPick
-              ? "选择 KovaaK 的 stats 文件夹（…\\FPSAimTrainer\\FPSAimTrainer\\stats）。页面开着时会自动导入新成绩。"
+              ? `选择 KovaaK 的 stats 文件夹（…\\FPSAimTrainer\\FPSAimTrainer\\stats）。${desktop ? "窗口" : "页面"}开着时会自动导入新成绩。`
               : "这个浏览器不能直接读文件夹，请用 Chrome 或 Edge；也可以在数据页一次选中所有 CSV 文件。"}
         </span>
         {message ? (

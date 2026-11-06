@@ -44,7 +44,9 @@ Requires Rust (stable, MSVC) and the Visual Studio C++ build tools. Windows 11 a
 npm run tauri dev
 ```
 
-Or double-click `start-desktop.bat`, which uses the project-local Node. The desktop app shows sample data until its own data source is in place.
+Or double-click `start-desktop.bat`, which uses the project-local Node.
+
+The desktop app reads your stats folder directly and syncs rank thresholds from EVXL and KovaaK. For now it keeps its data in its own webview storage, separate from the browser version: pick the stats folder again in the desktop app, or move notes and manual runs over with a backup. A SQLite database replaces this storage later.
 
 ## Commands
 

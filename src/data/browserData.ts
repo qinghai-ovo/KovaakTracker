@@ -21,13 +21,18 @@ const THRESHOLD_STEAM_ID = "76561197960287930";
 /** How often the remembered stats folder is checked for new files (also while the page is in the background). */
 const POLL_MS = 15_000;
 
-/** Where stats files come from; replaceable in tests. */
+/** A chosen stats folder: a browser directory handle, or the desktop app's folder path. */
+export interface StatsFolderRef {
+  readonly name: string;
+}
+
+/** Where stats files come from: the browser's folder access, the desktop app, or a fake in tests. */
 export interface StatsFolderApi {
   supported(): boolean;
-  pick(): Promise<FileSystemDirectoryHandle | null>;
-  remembered(): Promise<FileSystemDirectoryHandle | null>;
-  permission(handle: FileSystemDirectoryHandle, request?: boolean): Promise<PermissionState>;
-  files(handle: FileSystemDirectoryHandle): Promise<CsvReadableFile[]>;
+  pick(): Promise<StatsFolderRef | null>;
+  remembered(): Promise<StatsFolderRef | null>;
+  permission(handle: StatsFolderRef, request?: boolean): Promise<PermissionState>;
+  files(handle: StatsFolderRef): Promise<CsvReadableFile[]>;
 }
 
 const browserFolderApi: StatsFolderApi = {
@@ -81,7 +86,7 @@ export function createBrowserData({
   let loading = true;
   let storageWarning: string | null = null;
   let importProgress: LiveState["importProgress"] = null;
-  let folder: FileSystemDirectoryHandle | null = null;
+  let folder: StatsFolderRef | null = null;
   let folderAccess: FolderAccess = folderApi.supported() ? "none" : "unsupported";
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let importing: Promise<string> | null = null;
@@ -292,7 +297,7 @@ export function createBrowserData({
     rebuild();
   }
 
-  async function readFolder(handle: FileSystemDirectoryHandle, full: boolean): Promise<string> {
+  async function readFolder(handle: StatsFolderRef, full: boolean): Promise<string> {
     const message = await exclusive(async () => importFiles(await folderApi.files(handle), handle.name, { full }));
     startPolling();
     return message;

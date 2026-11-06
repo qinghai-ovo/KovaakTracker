@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core";
 import { useMemo, useState, type FormEvent } from "react";
 import { dataScreen, type DataRecordView, type RecordStatus, type UnmatchedScenarioView } from "../../domain/screens/data.ts";
 import type { ScoreRecord } from "../../domain/types.ts";
@@ -108,7 +109,7 @@ export function DataScreen() {
           </span>
           <span className="small muted">
             {folderStatus(snapshot)}
-            {sourceLabel(snapshot.source)}
+            {sourceLabel(snapshot.source, isTauri())}
           </span>
           {snapshot.importProgress ? (
             <span className="small" role="status" style={{ color: "var(--accent)" }}>
