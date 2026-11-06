@@ -33,3 +33,6 @@ kovaak-tracker-*.json
 *.log
 *.tsbuildinfo
 .cache/
+
+# Claude Code local settings (launch.json points at the project-local .tools/node)
+.claude/

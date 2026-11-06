@@ -44,7 +44,6 @@ Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/).
 | `npm run check:ts-modules` | Run core data and service checks. |
 | `npm run check:fallback` | Check bundled benchmark metadata. |
 | `npm run check:react-parity` | Check React data calculations and storage behavior. |
-| `npm run check:react-smoke` | Run browser workflow checks. |
 | `npm run capture:ui-qa` | Capture UI screenshots. |
 | `npm run build` | Build the app into `dist/`. |
 
@@ -57,7 +56,7 @@ Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/).
 - `src/core/`: CSV parsing, scenario matching, metrics, ranks, reviews, and storage.
 - `src/services/`: file import, backups, and benchmark requests.
 - `src/data/`: bundled benchmark metadata.
-- `scripts/`: regression checks, browser checks, and screenshot capture.
+- `scripts/`: regression checks and screenshot capture.
 
 ## Data Sources
 
