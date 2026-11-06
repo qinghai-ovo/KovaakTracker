@@ -5,7 +5,7 @@ import { MapScreen } from "../screens/map/MapScreen.tsx";
 import { SettingsScreen } from "../screens/settings/SettingsScreen.tsx";
 import { TodayScreen } from "../screens/today/TodayScreen.tsx";
 import { AppNav } from "./AppNav.tsx";
-import { DataNotice, StorageWarning } from "./DataNotice.tsx";
+import { DataNotice, SampleDataNotice, StorageWarning } from "./DataNotice.tsx";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { useMapView, useRankStyles, useScreenInput, useSnapshot, useTrackerData } from "./data.tsx";
 import { useRunNotifications } from "./useRunNotifications.ts";
@@ -38,6 +38,7 @@ export function App() {
     <div className={snapshot.preferences.showInRank ? "app" : "app hide-in-rank"}>
       <AppNav active={route.name} snapshot={snapshot} overall={mapView.overall} styles={styles} />
       <main className="app__main">
+        <SampleDataNotice snapshot={snapshot} />
         <StorageWarning snapshot={snapshot} />
         <DataNotice snapshot={snapshot} />
         <ErrorBoundary resetKey={`${route.name}/${route.param ?? ""}`}>{screen}</ErrorBoundary>
