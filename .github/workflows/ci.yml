@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # These two older checks build fixtures from UTC timestamps but assert
+      # local wall-clock times, so they only pass in the time zone they were
+      # written in. The tests under tests/ do not depend on the time zone.
+      - name: Module checks
+        run: npm run check:ts-modules
+        env:
+          TZ: Asia/Tokyo
+
+      - name: Classic UI parity checks
+        run: npm run check:react-parity
+        env:
+          TZ: Asia/Tokyo
+
+      - name: Benchmark fallback checks
+        run: npm run check:fallback
+
+      - name: Build
+        run: npm run build
