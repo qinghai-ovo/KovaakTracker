@@ -70,3 +70,17 @@ export function stableLevel(runs: Run[], window: StableWindow, context: MetricsC
   const size = window === "last20" ? 20 : 10;
   return average(past.slice(-size).map((run) => run.score));
 }
+
+/** Average score of each of the last `weeks` training weeks, oldest first (null for weeks without runs). */
+export function weeklyAverages(runs: Run[], weeks: number, { now, dayStartHour = DEFAULT_DAY_START_HOUR }: MetricsContext): Array<number | null> {
+  const ranges = [trainingWeekRange(now, dayStartHour)];
+  while (ranges.length < weeks) ranges.unshift(previousTrainingWeek(ranges[0]));
+  const buckets = ranges.map(() => [] as number[]);
+  runs.forEach((run) => {
+    if (time(run) > now.getTime()) return;
+    const dayKey = trainingDayKey(run.date, dayStartHour);
+    const index = ranges.findIndex((range) => isDayInRange(dayKey, range));
+    if (index >= 0) buckets[index].push(run.score);
+  });
+  return buckets.map((scores) => average(scores));
+}

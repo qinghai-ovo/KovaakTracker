@@ -92,7 +92,7 @@ export function RecordsTable({ onEditManualRecord, onExcludeRecord, onRemoveManu
 }
 
 function exclusionLabel(exclusion: RecordExclusion | undefined): string {
-  if (!exclusion) return "正常";
+  if (!exclusion || exclusion.status === "kept") return "正常";
   if (exclusion.status === "excluded") return exclusion.reason === "zero-score" ? "已排除 · 0分" : "已排除";
   return "需留意";
 }

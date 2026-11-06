@@ -81,3 +81,21 @@ export function countsTowardMetrics(record: ScoreRecord, exclusions: Record<stri
   if (status === "suspicious") return policy === "warn";
   return true;
 }
+
+/** Marks a run the low-score rule flagged as valid, so it is never re-flagged. */
+export function keepRecordManually(record: ScoreRecord, exclusions: Record<string, RecordExclusion>, now = new Date().toISOString()): Record<string, RecordExclusion> {
+  const key = recordKey(record);
+  if (record.score === 0) return exclusions;
+  return { ...exclusions, [key]: { recordKey: key, status: "kept", reason: "manual", updatedAt: now } };
+}
+
+/** Toggles whether a run counts: ignore a counted run, or bring back an ignored / flagged one. */
+export function toggleRecordCounted(
+  record: ScoreRecord,
+  exclusions: Record<string, RecordExclusion>,
+  currentlyCounts: boolean,
+  now = new Date().toISOString(),
+): Record<string, RecordExclusion> {
+  if (currentlyCounts) return excludeRecordManually(record, exclusions, "", now);
+  return keepRecordManually(record, exclusions, now);
+}

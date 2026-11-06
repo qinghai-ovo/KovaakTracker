@@ -1,5 +1,5 @@
 // Sample data from the v2 design canvas (Today / Map screens), turned into real records.
-import type { BenchmarkScenario, ScoreRecord } from "../../src/domain/types.ts";
+import type { BenchmarkScenario, ScoreRecord } from "../../domain/types.ts";
 
 export const rankColors: Record<string, string> = {
   Lemming: "#C5C3F2",
@@ -110,3 +110,87 @@ export function mapFixture() {
 export function recordsLookup(records: ScoreRecord[]) {
   return (scenarioName: string) => records.filter((record) => record.scenario === scenarioName);
 }
+
+// ---- Whole demo library -------------------------------------------------
+
+/**
+ * One consistent library for the demo app: all 16 Map scenarios, where the six Today plan
+ * scenarios use their run-by-run history and the rest use the Map weekly summary.
+ */
+export function demoDataset() {
+  const map = mapFixture();
+  const today = todayFixture();
+  const planNames = new Set(today.plan.map((item) => item.scenarioName));
+  return {
+    scenarios: map.scenarios,
+    records: [...map.records.filter((record) => !planNames.has(record.scenario)), ...today.records],
+    plan: today.plan,
+  };
+}
+
+// ---- Extra demo material for the Data and Journal screens ----------------
+
+function seeded(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+/**
+ * Older practice sessions (Jul 20 – Oct 11) so the 16-week heatmap has history. Scores stay
+ * below last week's average, so personal bests and the recent weekly numbers are unchanged.
+ */
+export function backgroundSessions(): ScoreRecord[] {
+  const random = seeded(20260720);
+  const records: ScoreRecord[] = [];
+  for (let day = 0; day < 84; day += 1) {
+    if (random() > 0.6) continue;
+    const date = new Date(2026, 6, 20 + day, 19, Math.floor(random() * 40));
+    const scenarioCount = 1 + Math.floor(random() * 3);
+    for (let s = 0; s < scenarioCount; s += 1) {
+      const [, , name, , , , prev] = mapRows[Math.floor(random() * mapRows.length)];
+      const runs = 2 + Math.floor(random() * 3);
+      for (let r = 0; r < runs; r += 1) {
+        date.setMinutes(date.getMinutes() + 2);
+        records.push(run(name, Math.round(prev * (0.88 + random() * 0.08)), new Date(date)));
+      }
+    }
+  }
+  return records;
+}
+
+/** Runs whose scenario names are not in the benchmark (for "未匹配的场景"). */
+export function unmatchedRecords(): ScoreRecord[] {
+  const groups: Array<[string, number, number]> = [
+    ["VT Smoothbot Arm Easy", 6, 2400],
+    ["1wall6targets TE", 5, 1100],
+    ["Pasu Angelic", 4, 760],
+    ["Tile Frenzy 180", 3, 900],
+  ];
+  return groups.flatMap(([name, count, score], g) =>
+    Array.from({ length: count }, (_, i) => run(name, score + i * 7, new Date(2026, 9, 20 + g, 20, i * 2))),
+  );
+}
+
+export const MANUAL_RECORD: ScoreRecord = {
+  id: "manual-1",
+  scenario: "Air Angelic",
+  score: 2050,
+  date: "2026-11-02T21:10:00",
+  note: "在朋友电脑上打的",
+  source: "manual",
+};
+
+/** A run the user ignored by hand (Controlsphere, 11-02 20:56). */
+export const IGNORED_RECORD: ScoreRecord = run("Controlsphere", 2140, new Date(2026, 10, 2, 20, 56));
+
+export const failedImports = [
+  { fileName: "Smoothbot Arm - Challenge - 2026.10.28-21.04.11 Stats.csv", reason: "文件为空" },
+  { fileName: "Static Flick - Challenge - 2026.10.21-19.40.02 Stats.csv", reason: "找不到分数" },
+  { fileName: "Wrist Strafe - Challenge - 2026.10.14-20.12.55 Stats.csv", reason: "读取失败" },
+];
+
+/** Threshold multipliers for the demo difficulties. */
+export const difficultyScale: Record<string, number> = { Easier: 1, Medium: 1.2, Hard: 1.4 };

@@ -1,0 +1,4 @@
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 20px; align-items: start; max-width: 1180px; }
+.settings-section { gap: 8px; }
+.settings-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 14px; padding-top: 8px; }
+.settings-backup { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px; border-radius: var(--radius-card); border: 1px dashed var(--line-strong); }

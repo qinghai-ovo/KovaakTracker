@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { suggestNextScenario, todayScreen } from "../../src/domain/screens/today.ts";
 import { mapScreen } from "../../src/domain/screens/map.ts";
-import { NOW, mapFixture, rankColors, recordsLookup, todayFixture } from "../fixtures/design.ts";
+import { NOW, mapFixture, rankColors, recordsLookup, todayFixture } from "../../src/data/fixtures/designSample.ts";
 
 const close = (actual: number | null, expected: number, message?: string) =>
   assert.ok(actual !== null && Math.abs(actual - expected) < 1e-6, `${message ?? ""} expected ${expected}, got ${actual}`);

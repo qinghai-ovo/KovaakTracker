@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { personalBest, stableLevel, weekComparison } from "../../src/domain/metrics.ts";
+import { personalBest, stableLevel, weekComparison, weeklyAverages } from "../../src/domain/metrics.ts";
 import { categoryRankPosition, overallRankPosition } from "../../src/domain/category.ts";
 
 const now = new Date(2026, 10, 3, 21); // Tuesday
@@ -47,4 +47,12 @@ test("category and overall rank positions", () => {
   assert.equal(categoryRankPosition([], 9).index, -1);
   assert.equal(overallRankPosition([40, 80], 9, "weakest").index, 2);
   assert.equal(overallRankPosition([40, 80], 9, "average").index, 4);
+});
+
+test("weekly averages for the sparkline, oldest first", () => {
+  const values = weeklyAverages(runs, 3, { now });
+  assert.equal(values.length, 3);
+  assert.equal(values[0], null, "two weeks ago had no runs");
+  assert.equal(values[1], 340 / 3);
+  assert.equal(values[2], 130);
 });
