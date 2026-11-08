@@ -5,6 +5,7 @@ import { MapScreen } from "../screens/map/MapScreen.tsx";
 import { SettingsScreen } from "../screens/settings/SettingsScreen.tsx";
 import { TodayScreen } from "../screens/today/TodayScreen.tsx";
 import { AppNav } from "./AppNav.tsx";
+import { RestoreReportNotice } from "./BackupImport.tsx";
 import { DataNotice, SampleDataNotice, StorageWarning } from "./DataNotice.tsx";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { useMapView, useRankStyles, useScreenInput, useSnapshot, useTrackerData } from "./data.tsx";
@@ -40,6 +41,7 @@ export function App() {
       <main className="app__main">
         <SampleDataNotice snapshot={snapshot} />
         <StorageWarning snapshot={snapshot} />
+        <RestoreReportNotice snapshot={snapshot} />
         <DataNotice snapshot={snapshot} />
         <ErrorBoundary resetKey={`${route.name}/${route.param ?? ""}`}>{screen}</ErrorBoundary>
       </main>

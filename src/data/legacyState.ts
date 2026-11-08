@@ -7,7 +7,7 @@ import type { ScenarioAliases } from "../domain/screens/data.ts";
 import { defaultScreenSettings, type ScreenSettings } from "../domain/screens/shared.ts";
 import type { TodayPlanItem } from "../domain/screens/today.ts";
 import type { AppState, Benchmark, DailyReviewEntry } from "../domain/types.ts";
-import { defaultPreferences, trackedId, type AppPreferences, type CatalogEntry, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type TrackedBenchmark, type TrackerSnapshot } from "./trackerData.ts";
+import { defaultPreferences, trackedId, type AppPreferences, type CatalogEntry, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type RestoreReport, type TrackedBenchmark, type TrackerSnapshot } from "./trackerData.ts";
 
 /** localStorage key the classic app reads and writes. */
 export const LEGACY_STORAGE_KEY = "kovaak-benchmark-tracker-v2";
@@ -196,6 +196,7 @@ export interface LiveState {
   storageWarning: string | null;
   importProgress: { done: number; total: number } | null;
   folderError?: string | null;
+  restoreReport?: RestoreReport | null;
 }
 
 const idle: LiveState = { watching: false, folderAccess: "none", loading: false, storageWarning: null, importProgress: null };
@@ -242,7 +243,16 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, 
     storageWarning: live.storageWarning,
     importProgress: live.importProgress,
     folderError: live.folderError ?? null,
+    restoreReport: live.restoreReport ?? null,
   };
+}
+
+/** An id for a new manual run, `manual-<ms>`, made unique when two are added in the same millisecond. */
+export function newManualId(existing: Array<{ id?: string }>, ms: number): string {
+  const taken = new Set(existing.map((record) => record.id));
+  let id = `manual-${ms}`;
+  for (let n = 2; taken.has(id); n += 1) id = `manual-${ms}-${n}`;
+  return id;
 }
 
 /** Writes a day's note into the classic app's daily reviews (keeping its other fields). */

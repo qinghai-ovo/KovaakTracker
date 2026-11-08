@@ -16,6 +16,7 @@ import {
   followedWithout,
   type LiveState,
   LEGACY_STORAGE_KEY,
+  newManualId,
   parseAppStore,
   snapshotFromLegacy,
   trackedRefs,
@@ -410,7 +411,7 @@ export function createBrowserData({
     },
     addManualRun(input) {
       writeLegacy((raw, current) => {
-        raw.manualRecords = [...current.manualRecords, manualRecord(`manual-${Date.now()}`, input)];
+        raw.manualRecords = [...current.manualRecords, manualRecord(newManualId(current.manualRecords, Date.now()), input)];
       });
     },
     updateManualRun(id, input) {

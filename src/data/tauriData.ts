@@ -18,6 +18,7 @@ import {
   followedWith,
   followedWithout,
   LEGACY_STORAGE_KEY,
+  newManualId,
   snapshotFromLegacy,
   trackedRefs,
   withDayNote,
@@ -32,14 +33,16 @@ import {
   rowsFromBenchmarks,
   runFromRecord,
   recordFromRun,
+  restoreReport as restoreReportOf,
   SETTING,
   settingRows,
   stateFromData,
   trackedRows,
   type AppData,
+  type Restored,
   type StoredRun,
 } from "./tauriRows.ts";
-import { trackedId, type FailedImport, type ManualRunInput, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
+import { trackedId, type FailedImport, type ManualRunInput, type RestoreReport, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
 
 /** Where the interim desktop app (before the database) remembered the stats folder. */
 export const DESKTOP_STATS_DIR_KEY = "kovaak-tracker-desktop-stats-dir";
@@ -124,13 +127,14 @@ export function createTauriData({
   let storageWarning: string | null = null;
   let importProgress: TrackerSnapshot["importProgress"] = null;
   let failedImports: FailedImport[] = [];
+  let restoreReport: RestoreReport | null = null;
 
   const build = (): TrackerSnapshot => ({
     ...snapshotFromLegacy(
       { ...legacy, csvRecords, manualRecords },
       store,
       clock(),
-      { watching, folderAccess: legacy.statsFolderName ? "ready" : "none", loading, storageWarning, importProgress, folderError },
+      { watching, folderAccess: legacy.statsFolderName ? "ready" : "none", loading, storageWarning, importProgress, folderError, restoreReport },
       "tauri",
     ),
     failedImports,
@@ -331,7 +335,7 @@ export function createTauriData({
       setExclusions(toggleRecordCounted(record, legacy.recordExclusions, currentlyCounts, clock().toISOString()));
     },
     addManualRun(input) {
-      const record = manualRecord(`manual-${now()}`, input);
+      const record = manualRecord(newManualId(manualRecords, now()), input);
       manualRecords = [...manualRecords, record];
       saveManual(record);
       rebuild();
@@ -456,10 +460,17 @@ export function createTauriData({
       }
       await ready;
       const restore = restoreFromBackup(parsed, now(), legacy.benchmarks);
-      await backend.invoke<number>("data_restore", { backup: restore });
-      apply(await backend.invoke<AppData>("data_load"));
+      const restored = await backend.invoke<Restored>("data_restore", { backup: restore });
+      const data = await backend.invoke<AppData>("data_load");
+      apply(data);
+      restoreReport = restoreReportOf(restore, data, file.name, restored.copy);
       rebuild();
-      return `已恢复 ${restore.runs.length} 局成绩`;
+      const different = restoreReport.rows.filter((row) => row.backup !== row.now).length;
+      return different ? `已导入 ${file.name}，但有 ${different} 项数量和备份不一样，见下方核对` : `已导入 ${file.name}，数量和备份一致`;
+    },
+    dismissRestoreReport() {
+      restoreReport = null;
+      rebuild();
     },
     backup: () => ({ ...legacy, csvRecords, manualRecords, newUi: store }),
   };

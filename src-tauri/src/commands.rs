@@ -1,6 +1,7 @@
 //! Commands the screens use to read and change what the database keeps (`src/data/tauriData.ts`).
 //! Importing from the stats folder lives in `importer`.
 
+use serde::Serialize;
 use tauri::State;
 
 use crate::{
@@ -110,9 +111,31 @@ pub fn setting_set(
     with_db(&db, |db| db.set_setting(&key, &value.to_string()))
 }
 
-/// Restores a backup; returns how many runs were new.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Restored {
+    /// Runs the database didn't have yet.
+    added: usize,
+    /// Where the database was copied before the restore; None when it held nothing to lose.
+    copy: Option<String>,
+}
+
+/// Copies the database aside, then restores a backup. Nothing is replaced if the copy fails.
 #[tauri::command]
-pub fn data_restore(db: State<'_, AppDb>, mut backup: Restore) -> Result<usize, String> {
+pub fn data_restore(db: State<'_, AppDb>, mut backup: Restore) -> Result<Restored, String> {
     backup.settings.retain(|key, _| !importer_key(key));
-    with_db(&db, |db| db.restore(&backup, now_ms()))
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    let mut db = db.lock()?;
+    let copy = db.copy_before_restore(&stamp).map_err(|err| {
+        log::error!("copy before restore: {err}");
+        format!("没能先把当前数据另存一份，所以没有导入：{err}")
+    })?;
+    let added = db.restore(&backup, now_ms()).map_err(|err| {
+        log::error!("restore: {err}");
+        format!("数据库出错：{err}")
+    })?;
+    Ok(Restored {
+        added,
+        copy: copy.map(|path| path.display().to_string()),
+    })
 }

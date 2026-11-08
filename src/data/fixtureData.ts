@@ -15,6 +15,7 @@ import {
   rankColors,
   unmatchedRecords,
 } from "./fixtures/designSample.ts";
+import { newManualId } from "./legacyState.ts";
 import { defaultPreferences, trackedId, type TrackedBenchmark, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
 
 const DEMO_BENCHMARK = "Viscose S2";
@@ -78,6 +79,7 @@ export function createFixtureData(): TrackerData {
     storageWarning: null,
     importProgress: null,
     folderError: null,
+    restoreReport: null,
   };
   const listeners = new Set<() => void>();
   const eventListeners = new Set<(event: TrackerEvent) => void>();
@@ -110,7 +112,7 @@ export function createFixtureData(): TrackerData {
       update({ exclusions: toggleRecordCounted(record, snapshot.exclusions, currentlyCounts, stamp()) });
     },
     addManualRun(input) {
-      const record: ScoreRecord = { id: `manual-${Date.now()}`, scenario: input.scenario, score: input.score, date: input.date, note: input.note, source: "manual" };
+      const record: ScoreRecord = { id: newManualId(snapshot.records, Date.now()), scenario: input.scenario, score: input.score, date: input.date, note: input.note, source: "manual" };
       update({ records: [...snapshot.records, record] });
     },
     updateManualRun(id, input) {
