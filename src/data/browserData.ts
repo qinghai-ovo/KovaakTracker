@@ -1,23 +1,33 @@
 import { toggleRecordCounted } from "../domain/exclusions.ts";
 import { sameScenario } from "../domain/scenario.ts";
 import { resolveScenarioName } from "../domain/screens/data.ts";
-import type { AppState, Benchmark, CsvImportStatus, ScoreRecord } from "../domain/types.ts";
-import { mergeBenchmarks } from "../services/benchmark.ts";
-import { fetchEvxlBenchmarks, fetchKovaakBenchmarkDetails } from "../services/benchmarkSync.ts";
+import type { AppState, CsvImportStatus, ScoreRecord } from "../domain/types.ts";
 import { browserFetch, LocalDevProxyUnavailableError } from "../services/browserFetch.ts";
 import { parseKovaakCsvWithStatus } from "../services/csv.ts";
 import type { CsvReadableFile } from "../services/fileImport.ts";
 import { loadState, normalizeState, type StorageLike } from "../services/storage.ts";
 import { benchmarkFallback } from "./benchmarkFallback.ts";
 import { importedFileNames, importMessage, mergeImport } from "./importLogic.ts";
-import { activeRef, APP_STORAGE_KEY, type LiveState, LEGACY_STORAGE_KEY, parseAppStore, snapshotFromLegacy, trackedRefs, withDayNote, type AppStore, type TrackedRef } from "./legacyState.ts";
+import {
+  activeRef,
+  APP_STORAGE_KEY,
+  followedInOrder,
+  followedWith,
+  followedWithout,
+  type LiveState,
+  LEGACY_STORAGE_KEY,
+  parseAppStore,
+  snapshotFromLegacy,
+  trackedRefs,
+  withDayNote,
+  type AppStore,
+  type TrackedRef,
+} from "./legacyState.ts";
+import { syncThresholds } from "./thresholdSync.ts";
 import { compactRecord, indexedDbRecordStore, memoryRecordStore, type RecordStore } from "./recordStore.ts";
 import { folderPermission, folderPickerSupported, listStatsFiles, pickStatsFolder, rememberedStatsFolder } from "./statsFolder.ts";
 import { trackedId, type FolderAccess, type ManualRunInput, type TrackerData, type TrackerEvent, type TrackerSnapshot } from "./trackerData.ts";
 
-const EVXL_BENCHMARK_URL = "https://evxl.app/benchmarks/Viscose%20Benchmarks%20S2";
-/** Any Steam id works for reading thresholds; this is the one the classic app uses. */
-const THRESHOLD_STEAM_ID = "76561197960287930";
 /** How often the remembered stats folder is checked for new files (also while the page is in the background). */
 const POLL_MS = 15_000;
 
@@ -317,42 +327,19 @@ export function createBrowserData({
   // ---- Benchmark sync ---------------------------------------------------------------
 
   async function syncBenchmark(): Promise<string> {
-    const messages: string[] = [];
-    let benchmarks: Benchmark[] = legacy.benchmarks.length ? legacy.benchmarks : benchmarkFallback;
+    let result;
     try {
-      const fetched = (await fetchEvxlBenchmarks(EVXL_BENCHMARK_URL, fetchImpl)).filter((item) => /viscose/i.test(item.benchmarkName));
-      if (fetched.length) {
-        benchmarks = mergeBenchmarks(benchmarks, fetched);
-        messages.push(`已更新 ${fetched.length} 个 benchmark`);
-      }
+      result = await syncThresholds({
+        benchmarks: legacy.benchmarks.length ? legacy.benchmarks : benchmarkFallback,
+        followed: (benchmarks) => trackedRefs({ ...legacy, benchmarks }, store),
+        fetchImpl,
+        now: clock,
+      });
     } catch (error) {
       if (error instanceof LocalDevProxyUnavailableError) return "在线同步需要用 start-dev.bat 打开 http://127.0.0.1:5173/app.html";
-      messages.push("EVXL 列表更新失败，沿用已有清单");
+      throw error;
     }
-    // Thresholds for every followed difficulty, so switching in the sidebar works offline.
-    const targets = trackedRefs({ ...legacy, benchmarks }, store);
-    const synced: string[] = [];
-    for (const ref of targets) {
-      const difficulty = benchmarks.find((item) => item.benchmarkName === ref.benchmark)?.difficulties?.find((item) => item.difficultyName === ref.difficulty);
-      if (!difficulty?.kovaaksBenchmarkId) continue;
-      try {
-        const scenarios = await fetchKovaakBenchmarkDetails({ benchmarkId: difficulty.kovaaksBenchmarkId, steamId: THRESHOLD_STEAM_ID, fetchImpl });
-        benchmarks = benchmarks.map((item) =>
-          item.benchmarkName !== ref.benchmark
-            ? item
-            : {
-                ...item,
-                difficulties: (item.difficulties || []).map((entry) =>
-                  entry.difficultyName === ref.difficulty ? { ...entry, scenarios, apiUpdatedAt: clock().toISOString() } : entry,
-                ),
-              },
-        );
-        synced.push(`${ref.difficulty} · ${scenarios.length} 个场景`);
-      } catch {
-        messages.push(`读取 ${ref.difficulty} 段位线失败，可稍后重试`);
-      }
-    }
-    if (synced.length) messages.push(`段位线：${synced.join("，")}`);
+    const { benchmarks, messages } = result;
     const active = activeRef({ ...legacy, benchmarks });
     writeLegacy((raw) => {
       raw.benchmarks = benchmarks;
@@ -369,15 +356,7 @@ export function createBrowserData({
 
   /** Saves the followed list (plus extra refs) so switching never drops the previous benchmark. */
   function rememberTracked(...extra: TrackedRef[]) {
-    const refs = [...trackedRefs(legacy, store), ...extra];
-    const seen = new Set<string>();
-    const tracked = refs.filter((ref) => {
-      const id = trackedId(ref.benchmark, ref.difficulty);
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
-    writeStore({ tracked });
+    writeStore({ tracked: followedWith(legacy, store, ...extra) });
   }
 
   function select(ref: TrackedRef) {
@@ -472,30 +451,24 @@ export function createBrowserData({
       if (ref) select(ref);
     },
     reorderTracked(ids) {
-      const refs = trackedRefs(legacy, store);
-      const byId = new Map(refs.map((ref) => [trackedId(ref.benchmark, ref.difficulty), ref]));
-      const ordered = ids.map((id) => byId.get(id)).filter((ref): ref is TrackedRef => Boolean(ref));
-      const rest = refs.filter((ref) => !ids.includes(trackedId(ref.benchmark, ref.difficulty)));
-      writeStore({ tracked: [...ordered, ...rest] });
+      writeStore({ tracked: followedInOrder(legacy, store, ids) });
     },
     setTracked(benchmark, difficulty, tracked) {
-      const id = trackedId(benchmark, difficulty);
       if (tracked) {
         rememberTracked({ benchmark, difficulty });
         return;
       }
-      const remaining = trackedRefs(legacy, store).filter((ref) => trackedId(ref.benchmark, ref.difficulty) !== id);
-      if (!remaining.length) return; // Always keep at least one.
-      const active = activeRef(legacy);
-      if (active && trackedId(active.benchmark, active.difficulty) === id) {
+      const change = followedWithout(legacy, store, trackedId(benchmark, difficulty));
+      if (!change) return;
+      const next = change.nextActive;
+      if (next) {
         // Switch first, otherwise the still-active benchmark would be re-added to the list.
-        const next = remaining[0];
         writeLegacy((raw) => {
           raw.selectedBenchmark = next.benchmark;
           raw.selectedDifficulty = next.difficulty;
         });
       }
-      writeStore({ tracked: remaining });
+      writeStore({ tracked: change.tracked });
     },
     updateDay(dayKey, patch) {
       if (patch.note !== undefined) {

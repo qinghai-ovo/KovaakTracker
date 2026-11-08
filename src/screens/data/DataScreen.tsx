@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import { useMemo, useState, type FormEvent } from "react";
 import { dataScreen, type DataRecordView, type RecordStatus, type UnmatchedScenarioView } from "../../domain/screens/data.ts";
 import type { ScoreRecord } from "../../domain/types.ts";
@@ -16,6 +15,12 @@ const DESKTOP_ONLY = "示例数据里不可用";
 
 function folderStatus(snapshot: TrackerSnapshot): string {
   if (snapshot.source === "fixture") return snapshot.watching ? "正在监听 · 新成绩自动导入" : "未在监听";
+  if (snapshot.source === "tauri") {
+    if (!snapshot.statsDir) return "选择 KovaaK 的 stats 文件夹后，成绩会自动导入";
+    if (snapshot.folderError) return snapshot.folderError;
+    if (snapshot.watching) return "正在监听 · KovaaK 写出成绩后立即导入";
+    return snapshot.preferences.autoImport ? "未在监听" : "自动导入已关闭，需手动扫描";
+  }
   switch (snapshot.folderAccess) {
     case "ready":
       return snapshot.watching ? "已授权 · 每 15 秒检查一次新成绩" : snapshot.preferences.autoImport ? "已授权" : "已授权 · 自动导入已关闭，需手动扫描";
@@ -109,7 +114,7 @@ export function DataScreen() {
           </span>
           <span className="small muted">
             {folderStatus(snapshot)}
-            {sourceLabel(snapshot.source, isTauri())}
+            {sourceLabel(snapshot.source)}
           </span>
           {snapshot.importProgress ? (
             <span className="small" role="status" style={{ color: "var(--accent)" }}>

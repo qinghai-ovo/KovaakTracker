@@ -5,9 +5,8 @@ use std::{fs, path::Path, sync::Mutex, thread, time::UNIX_EPOCH};
 
 use serde::Serialize;
 
-use super::{lock, parser::parse_kovaak_csv};
+use super::{is_csv, lock, parser::parse_kovaak_csv};
 use crate::db::{Db, FileStatus, ImportedFile, NewRun, RunSource};
-use crate::stats::is_csv;
 
 /// Files per transaction. Progress is reported after each batch, and a long first import keeps
 /// what it has read so far if the app is closed halfway.
