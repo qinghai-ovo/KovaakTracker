@@ -1,4 +1,4 @@
-//! Reads KovaaK stats CSV files for the web UI until the Rust import pipeline lands (roadmap M2c).
+//! Reads KovaaK stats CSV files for the web UI until it reads runs from the database (roadmap M2d).
 //!
 //! The page passes the folder the user picked plus a bare file name; only `.csv` files directly
 //! inside that folder can be read.
@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-fn is_csv(name: &str) -> bool {
+pub(crate) fn is_csv(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".csv")
 }
 

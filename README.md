@@ -57,6 +57,7 @@ The desktop app reads your stats folder directly and syncs rank thresholds from 
 | `npm run check:ts-modules` | Run core data and service checks. |
 | `npm run check:fallback` | Check bundled benchmark metadata. |
 | `npm run check:react-parity` | Check React data calculations and storage behavior. |
+| `npm run check:csv-parity -- "<stats folder>"` | Check that the desktop importer (Rust) reads a stats folder exactly like the browser version. Needs Rust. |
 | `npm run capture:ui-qa` | Capture UI screenshots. |
 | `npm run build` | Build the app into `dist/`. |
 | `npm run tauri dev` | Run the desktop app in development mode. |

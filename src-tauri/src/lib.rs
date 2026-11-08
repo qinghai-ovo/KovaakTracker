@@ -1,12 +1,13 @@
 pub mod db;
+pub mod importer;
 mod stats;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::Manager;
 
-/// The open database, shared by commands. Missing if it couldn't be opened.
-pub struct AppDb(pub Mutex<db::Db>);
+/// The open database, shared by commands and the import thread. Missing if it couldn't be opened.
+pub struct AppDb(pub Arc<Mutex<db::Db>>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,7 +16,10 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
             stats::list_stats_files,
-            stats::read_stats_file
+            stats::read_stats_file,
+            importer::stats_dir_set,
+            importer::import_rescan,
+            importer::import_status
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -25,11 +29,13 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            // Nothing reads the database yet (the screens still use webview storage), so a
+            // The screens don't read the database yet (they still use webview storage), so a
             // failure here is logged instead of stopping the app.
             match open_db(app.handle()) {
                 Ok(db) => {
-                    app.manage(AppDb(Mutex::new(db)));
+                    let db = Arc::new(Mutex::new(db));
+                    app.manage(importer::Importer::start(app.handle().clone(), db.clone()));
+                    app.manage(AppDb(db));
                 }
                 Err(err) => log::error!("could not open the database: {err}"),
             }

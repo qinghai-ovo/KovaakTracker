@@ -4,7 +4,7 @@
 //! Rules (scenario matching, ranks, suspicious runs) stay in TypeScript. This module stores raw
 //! runs and the player's choices and never computes results.
 
-use std::{fmt, path::Path, time::Duration};
+use std::{collections::HashMap, fmt, path::Path, time::Duration};
 
 use rusqlite::{
     Connection, OptionalExtension, ToSql, params,
@@ -121,6 +121,31 @@ pub struct NewRun {
     pub note: Option<String>,
 }
 
+text_enum!(
+    /// What happened when a stats file was read.
+    FileStatus { Imported => "imported", Failed => "failed", Skipped => "skipped" }
+);
+
+/// A stats file after the importer read it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportedFile {
+    pub path: String,
+    pub size: i64,
+    /// UTC milliseconds.
+    pub mtime: i64,
+    pub status: FileStatus,
+    /// Why it gave no run (a `ParseFailure` code or a read error).
+    pub error: Option<String>,
+}
+
+/// What the database remembers about a stats file, to tell whether it changed since.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FileState {
+    pub size: Option<i64>,
+    pub mtime: Option<i64>,
+    pub status: FileStatus,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunOverride {
@@ -168,6 +193,17 @@ impl Db {
     /// Stores runs in one transaction, skipping any whose identity is already stored.
     /// Returns how many were new.
     pub fn insert_runs(&mut self, runs: &[NewRun], now: i64) -> Result<usize> {
+        self.record_import(runs, &[], now)
+    }
+
+    /// Stores the runs read from a batch of stats files and what happened to each file, in one
+    /// transaction. Runs already stored are skipped. Returns how many runs were new.
+    pub fn record_import(
+        &mut self,
+        runs: &[NewRun],
+        files: &[ImportedFile],
+        now: i64,
+    ) -> Result<usize> {
         let tx = self.conn.transaction()?;
         let mut added = 0;
         {
@@ -192,9 +228,53 @@ impl Db {
                     now,
                 ])?;
             }
+            let mut file_row = tx.prepare_cached(
+                "INSERT INTO import_files (path, size, mtime, status, error, imported_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT (path) DO UPDATE SET
+                   size = excluded.size, mtime = excluded.mtime, status = excluded.status,
+                   error = excluded.error, imported_at = excluded.imported_at",
+            )?;
+            for file in files {
+                file_row.execute(params![
+                    file.path,
+                    file.size,
+                    file.mtime,
+                    file.status,
+                    file.error,
+                    now
+                ])?;
+            }
         }
         tx.commit()?;
         Ok(added)
+    }
+
+    /// Size, modified time and outcome of every stats file read so far, by path.
+    pub fn import_file_states(&self) -> Result<HashMap<String, FileState>> {
+        let mut query = self
+            .conn
+            .prepare_cached("SELECT path, size, mtime, status FROM import_files")?;
+        let rows = query.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                FileState {
+                    size: row.get(1)?,
+                    mtime: row.get(2)?,
+                    status: row.get(3)?,
+                },
+            ))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Stats files that gave no run, with the reason, by path.
+    pub fn failed_files(&self) -> Result<Vec<(String, String)>> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT path, COALESCE(error, '') FROM import_files WHERE status = 'failed' ORDER BY path",
+        )?;
+        let rows = query.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
     /// Number of stored runs, not counting deleted manual runs.
@@ -318,7 +398,7 @@ mod tests {
             source: RunSource::File,
             scenario: "VT Pasu Intermediate S5".into(),
             score,
-            played_at: 1_793_788_262_000,
+            played_at: 1_793_701_862_000,
             played_local: "2026-11-03T19:31:02".into(),
             source_file: Some(file.into()),
             sensitivity: Some(0.35),
