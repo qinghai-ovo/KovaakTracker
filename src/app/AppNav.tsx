@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import { sourceLabel } from "../ui/format.ts";
 import type { ReactNode } from "react";
 import type { TrackerSnapshot } from "../data/trackerData.ts";
@@ -63,7 +62,8 @@ interface AppNavProps {
 function watchLabel(snapshot: TrackerSnapshot): string {
   if (snapshot.watching) return "正在监听 stats";
   if (snapshot.folderAccess === "needs-permission") return "需要重新授权 stats";
-  if (snapshot.source === "browser" && !snapshot.statsDir) return "还没选择 stats 文件夹";
+  if (snapshot.source !== "fixture" && !snapshot.statsDir) return "还没选择 stats 文件夹";
+  if (snapshot.folderError) return "stats 文件夹无法访问";
   return "未在监听";
 }
 
@@ -106,7 +106,7 @@ export function AppNav({ active, snapshot, overall, styles }: AppNavProps) {
         </div>
         <span className="small muted">
           上次导入 {snapshot.lastImportAt ?? "—"}
-          {sourceLabel(snapshot.source, isTauri())}
+          {sourceLabel(snapshot.source)}
         </span>
       </div>
     </nav>

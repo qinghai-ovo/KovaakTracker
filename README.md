@@ -46,7 +46,9 @@ npm run tauri dev
 
 Or double-click `start-desktop.bat`, which uses the project-local Node.
 
-The desktop app reads your stats folder directly and syncs rank thresholds from EVXL and KovaaK. For now it keeps its data in its own webview storage, separate from the browser version: pick the stats folder again in the desktop app, or move notes and manual runs over with a backup. A SQLite database replaces this storage later.
+The desktop app keeps everything in a SQLite database (`%APPDATA%\io.github.qinghaiovo.kovaaktracker\tracker.db`). It watches your stats folder and imports each run about half a second after KovaaK writes it, and it syncs rank thresholds from EVXL and KovaaK. Its data is separate from the browser version's: move ignored runs, manual runs and notes over with a backup (export in the browser, import on the Data page). Data saved by earlier desktop builds moves into the database by itself the first time.
+
+To try a build without touching your data, set `KOVAAK_TRACKER_DATA_DIR` to another folder before starting it.
 
 ## Commands
 

@@ -60,8 +60,8 @@ export function shortScenarioName(name: string): string {
 }
 
 /** Short label of where the data comes from, shown next to import status. */
-export function sourceLabel(source: "fixture" | "browser" | "tauri", desktop = false): string {
+export function sourceLabel(source: "fixture" | "browser" | "tauri"): string {
   if (source === "fixture") return " · 示例数据";
-  if (source === "browser") return desktop ? " · 桌面版" : " · 浏览器里的数据";
-  return "";
+  if (source === "browser") return " · 浏览器里的数据";
+  return " · 桌面版";
 }

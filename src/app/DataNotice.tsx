@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import type { TrackerSnapshot } from "../data/trackerData.ts";
 import { useTrackerData } from "./data.tsx";
 import { routeHref } from "./router.ts";
@@ -40,13 +39,13 @@ export function StorageWarning({ snapshot }: { snapshot: TrackerSnapshot }) {
 export function DataNotice({ snapshot }: { snapshot: TrackerSnapshot }) {
   const data = useTrackerData();
   const [run, busy, message] = useAction();
-  if (snapshot.source !== "browser" || snapshot.loading) return null;
+  if (snapshot.source === "fixture" || snapshot.loading) return null;
   const noRuns = snapshot.records.length === 0;
   const noThresholds = snapshot.benchmark.scenarios.length === 0;
   if (!noRuns && !noThresholds) return null;
 
   const canPick = snapshot.folderAccess !== "unsupported" && data.chooseStatsFolder;
-  const desktop = isTauri();
+  const desktop = snapshot.source === "tauri";
   return (
     <section className="data-notice" role="status">
       <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 320px" }}>
@@ -57,7 +56,7 @@ export function DataNotice({ snapshot }: { snapshot: TrackerSnapshot }) {
               ? "从 EVXL 和 KovaaK 读取 benchmark 的场景和段位线。"
               : "从 EVXL 和 KovaaK 读取 benchmark 的场景和段位线。需要用 start-dev.bat 打开的地址。"
             : canPick
-              ? `选择 KovaaK 的 stats 文件夹（…\\FPSAimTrainer\\FPSAimTrainer\\stats）。${desktop ? "窗口" : "页面"}开着时会自动导入新成绩。`
+              ? `选择 KovaaK 的 stats 文件夹（…\\FPSAimTrainer\\FPSAimTrainer\\stats）。${desktop ? "应用开着时，打完一局会立即导入。" : "页面开着时会自动导入新成绩。"}`
               : "这个浏览器不能直接读文件夹，请用 Chrome 或 Edge；也可以在数据页一次选中所有 CSV 文件。"}
         </span>
         {message ? (

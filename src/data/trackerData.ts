@@ -99,6 +99,8 @@ export interface TrackerSnapshot {
   storageWarning: string | null;
   /** Progress of a large import, for the Data screen. */
   importProgress: { done: number; total: number } | null;
+  /** Why the stats folder can't be watched or read right now (desktop app). */
+  folderError: string | null;
 }
 
 export type TrackerEvent = { type: "runs:added"; records: ScoreRecord[] };
@@ -113,7 +115,7 @@ export interface ManualRunInput {
 
 /**
  * The only way the UI reads or changes data. The fixture implementation keeps everything in
- * memory; the Tauri implementation (phase 1) will call backend commands and listen for events.
+ * memory, the browser one in browser storage, and the Tauri one in the desktop app's database.
  */
 export interface TrackerData {
   getSnapshot(): TrackerSnapshot;

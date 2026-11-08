@@ -121,6 +121,38 @@ export function trackedRefs(state: AppState, store: AppStore): TrackedRef[] {
   return refs;
 }
 
+const refId = (ref: TrackedRef) => trackedId(ref.benchmark, ref.difficulty);
+
+/** The followed list with `extra` added at the end, each benchmark once. */
+export function followedWith(state: AppState, store: AppStore, ...extra: TrackedRef[]): TrackedRef[] {
+  const seen = new Set<string>();
+  return [...trackedRefs(state, store), ...extra].filter((ref) => {
+    const id = refId(ref);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+/** The followed list in the order of `ids`; any not named keep their order after them. */
+export function followedInOrder(state: AppState, store: AppStore, ids: string[]): TrackedRef[] {
+  const refs = trackedRefs(state, store);
+  const byId = new Map(refs.map((ref) => [refId(ref), ref]));
+  const ordered = ids.map((id) => byId.get(id)).filter((ref): ref is TrackedRef => Boolean(ref));
+  return [...ordered, ...refs.filter((ref) => !ids.includes(refId(ref)))];
+}
+
+/**
+ * The followed list without `id`, and the benchmark to switch to when `id` is the active one.
+ * Null when `id` is the last one followed (at least one always stays).
+ */
+export function followedWithout(state: AppState, store: AppStore, id: string): { tracked: TrackedRef[]; nextActive: TrackedRef | null } | null {
+  const tracked = trackedRefs(state, store).filter((ref) => refId(ref) !== id);
+  if (!tracked.length) return null;
+  const active = activeRef(state);
+  return { tracked, nextActive: active && refId(active) === id ? tracked[0] : null };
+}
+
 function trackedOf(state: AppState, store: AppStore): TrackedBenchmark[] {
   const active = activeRef(state);
   return trackedRefs(state, store).map((ref) => {
@@ -163,11 +195,12 @@ export interface LiveState {
   loading: boolean;
   storageWarning: string | null;
   importProgress: { done: number; total: number } | null;
+  folderError?: string | null;
 }
 
 const idle: LiveState = { watching: false, folderAccess: "none", loading: false, storageWarning: null, importProgress: null };
 
-export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, live: LiveState = idle): TrackerSnapshot {
+export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, live: LiveState = idle, source: TrackerSnapshot["source"] = "browser"): TrackerSnapshot {
   const { benchmark, difficulty } = selectedDifficulty(state);
   const records = [...state.csvRecords, ...state.manualRecords];
   const days: Record<string, DayEntry> = {};
@@ -178,7 +211,7 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, 
     days[dayKey] = { mood: { ...mood }, note: days[dayKey]?.note ?? "" };
   });
   return {
-    source: "browser",
+    source,
     benchmark: {
       name: benchmark?.benchmarkName ?? "（未选择 benchmark）",
       available: state.benchmarks.map((item) => item.benchmarkName),
@@ -208,6 +241,7 @@ export function snapshotFromLegacy(state: AppState, store: AppStore, now: Date, 
     loading: live.loading,
     storageWarning: live.storageWarning,
     importProgress: live.importProgress,
+    folderError: live.folderError ?? null,
   };
 }
 

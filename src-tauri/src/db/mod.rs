@@ -4,6 +4,10 @@
 //! Rules (scenario matching, ranks, suspicious runs) stay in TypeScript. This module stores raw
 //! runs and the player's choices and never computes results.
 
+mod app_data;
+
+pub use app_data::*;
+
 use std::{collections::HashMap, fmt, path::Path, time::Duration};
 
 use rusqlite::{
@@ -13,7 +17,7 @@ use rusqlite::{
 use serde::{Deserialize, Serialize};
 
 /// Schema migrations in order. A database's `user_version` is the number that have run on it.
-const MIGRATIONS: &[&str] = &[include_str!("../migrations/0001_init.sql")];
+const MIGRATIONS: &[&str] = &[include_str!("../../migrations/0001_init.sql")];
 
 /// File name of the database inside the app data folder.
 pub const DB_FILE_NAME: &str = "tracker.db";
