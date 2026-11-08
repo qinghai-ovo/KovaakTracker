@@ -6,7 +6,7 @@ import type { AppState, Benchmark, RecordExclusion, ScoreRecord, SetupProfile } 
 import { normalizeState } from "../services/storage.ts";
 import { benchmarkFallback } from "./benchmarkFallback.ts";
 import { activeRef, parseAppStore, trackedRefs, type AppStore } from "./legacyState.ts";
-import type { AppPreferences } from "./trackerData.ts";
+import type { AppPreferences, RestoreReport } from "./trackerData.ts";
 import type { ScreenSettings } from "../domain/screens/shared.ts";
 
 export type RunSource = "file" | "manual" | "legacy";
@@ -324,6 +324,39 @@ export function stateFromData(data: AppData): LoadedState {
   return { legacy, store, csvRecords, manualRecords, lastRunId };
 }
 
+/** What `data_restore` returns. */
+export interface Restored {
+  added: number;
+  copy: string | null;
+}
+
+/**
+ * Compares a restore with what the database holds after it. A restore replaces everything but
+ * runs, so those counts should match exactly; for runs, every one in the backup should be stored.
+ */
+export function restoreReport(restore: Restore, data: AppData, fileName: string, copy: string | null): RestoreReport {
+  const stored = new Set(data.runs.map((run) => run.identity));
+  const backupRuns = new Set(restore.runs.map((run) => run.identity));
+  const backupManual = new Set(restore.runs.filter((run) => run.source === "manual").map((run) => run.identity));
+  const present = [...backupRuns].filter((identity) => stored.has(identity)).length;
+  // Days with neither a mood nor a note aren't stored.
+  const backupDays = restore.days.filter((day) => day.note || (day.mood && typeof day.mood === "object" && Object.keys(day.mood).length)).length;
+  return {
+    fileName,
+    rows: [
+      { label: "成绩", backup: backupRuns.size, now: present },
+      { label: "其中手动录入", backup: backupManual.size, now: data.runs.filter((run) => run.source === "manual").length },
+      { label: "忽略 / 确认的成绩", backup: new Set(restore.overrides.map((item) => item.identity)).size, now: data.overrides.length },
+      { label: "追踪的 benchmark", backup: new Set(restore.tracked.map((item) => `${item.benchmark}\u0000${item.difficulty}`)).size, now: data.tracked.length },
+      { label: "场景匹配", backup: new Set(restore.aliases.map((alias) => alias.rawName)).size, now: data.aliases.length },
+      { label: "计划", backup: new Set(restore.plan.map((item) => item.scenarioName)).size, now: data.plan.length },
+      { label: "训练日志（天）", backup: backupDays, now: data.days.length },
+    ],
+    otherRuns: data.runs.length - present,
+    copy,
+  };
+}
+
 /**
  * A backup (the classic app's format, optionally with `newUi`) as a database restore.
  * `currentBenchmarks` stand in when the backup has none.
@@ -333,9 +366,19 @@ export function restoreFromBackup(parsed: Partial<AppState> & { newUi?: unknown 
   const state = normalizeState({ ...parsed, ...(hasBenchmarks ? {} : { benchmarks: currentBenchmarks }), csvRecords: [], manualRecords: [] }, []);
   const store = parseAppStore(parsed.newUi ? JSON.stringify(parsed.newUi) : null);
   const list = (value: unknown) => (Array.isArray(value) ? (value as ScoreRecord[]) : []);
+  // Two manual runs added in the same millisecond could share an id; the second gets a suffix so
+  // both are kept (the database stores one run per identity).
+  const manualIds = new Set<string>();
+  const manual = list(parsed.manualRecords).map((record) => {
+    const base = recordKey({ ...record, source: "manual" });
+    let id = base;
+    for (let n = 2; manualIds.has(id); n += 1) id = `${base}-${n}`;
+    manualIds.add(id);
+    return { ...record, id, source: "manual" as const };
+  });
   const runs = [
     ...list(parsed.csvRecords).map((record) => runFromRecord({ ...record, source: "csv" }, "legacy")),
-    ...list(parsed.manualRecords).map((record) => runFromRecord({ ...record, source: "manual" }, "manual")),
+    ...manual.map((record) => runFromRecord(record, "manual")),
   ].filter((run): run is NewRun => run !== null);
   const days = new Map<string, StoredDay>();
   Object.entries(state.dailyReviews).forEach(([dayKey, entry]) => {

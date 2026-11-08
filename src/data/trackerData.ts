@@ -101,6 +101,18 @@ export interface TrackerSnapshot {
   importProgress: { done: number; total: number } | null;
   /** Why the stats folder can't be watched or read right now (desktop app). */
   folderError: string | null;
+  /** The check shown after a backup import (desktop app), until dismissed. */
+  restoreReport: RestoreReport | null;
+}
+
+/** After a backup was imported: what it held next to what the app holds now. */
+export interface RestoreReport {
+  fileName: string;
+  rows: Array<{ label: string; backup: number; now: number }>;
+  /** Runs the app holds beyond the backup's own, e.g. already imported from the stats folder. */
+  otherRuns: number;
+  /** Where the data from before the import was copied, if there was any. */
+  copy: string | null;
 }
 
 export type TrackerEvent = { type: "runs:added"; records: ScoreRecord[] };
@@ -159,6 +171,8 @@ export interface TrackerData {
   selectBenchmark?(name: string): void;
   /** Restore a backup exported by this app or the classic app. */
   importBackup?(file: File): Promise<string>;
+  /** Hide the check shown after a backup import. */
+  dismissRestoreReport?(): void;
   /** Everything worth backing up, as a JSON-serializable value. */
   backup?(): unknown;
 }

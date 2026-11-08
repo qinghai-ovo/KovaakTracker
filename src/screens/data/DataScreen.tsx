@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { dataScreen, type DataRecordView, type RecordStatus, type UnmatchedScenarioView } from "../../domain/screens/data.ts";
 import type { ScoreRecord } from "../../domain/types.ts";
 import type { TrackerSnapshot } from "../../data/trackerData.ts";
+import { BackupImportButton } from "../../app/BackupImport.tsx";
 import { useRankStyles, useSnapshot, useTrackerData } from "../../app/data.tsx";
 import { useAction } from "../../app/useAction.ts";
 import { Segmented } from "../../ui/Controls.tsx";
@@ -83,21 +84,7 @@ export function DataScreen() {
           <h1 className="page-title page-title--cjk">数据</h1>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <label className={data.importBackup ? "btn-secondary file-button" : "btn-secondary file-button is-disabled"} title={data.importBackup ? "替换当前所有数据" : DESKTOP_ONLY}>
-            导入备份
-            <input
-              type="file"
-              accept=".json,application/json"
-              disabled={!data.importBackup || busy}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (!file || !data.importBackup) return;
-                if (!window.confirm(`用 ${file.name} 替换当前的全部成绩和设置？建议先导出一份备份。`)) return;
-                void run(() => data.importBackup!(file));
-              }}
-            />
-          </label>
+          <BackupImportButton snapshot={snapshot} busy={busy} onImport={(file) => void run(() => data.importBackup!(file))} />
           <button type="button" className="btn-primary" onClick={() => downloadJson(data.backup ? data.backup() : snapshotBackup(snapshot), snapshot.now)}>
             导出备份
           </button>

@@ -8,7 +8,12 @@ mod app_data;
 
 pub use app_data::*;
 
-use std::{collections::HashMap, fmt, path::Path, time::Duration};
+use std::{
+    collections::HashMap,
+    fmt,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use rusqlite::{
     Connection, OptionalExtension, ToSql, params,
@@ -25,6 +30,8 @@ pub const DB_FILE_NAME: &str = "tracker.db";
 #[derive(Debug)]
 pub enum DbError {
     Sqlite(rusqlite::Error),
+    /// Reading or writing a file next to the database (e.g. a copy before a restore).
+    Io(std::io::Error),
     /// The file was written by a newer version of the app, which this version can't read safely.
     TooNew {
         found: i64,
@@ -36,6 +43,7 @@ impl fmt::Display for DbError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DbError::Sqlite(err) => write!(f, "database error: {err}"),
+            DbError::Io(err) => write!(f, "file error: {err}"),
             DbError::TooNew { found, supported } => write!(
                 f,
                 "the database was created by a newer version of the app (schema {found}, this version reads up to {supported})"
@@ -49,6 +57,12 @@ impl std::error::Error for DbError {}
 impl From<rusqlite::Error> for DbError {
     fn from(err: rusqlite::Error) -> Self {
         DbError::Sqlite(err)
+    }
+}
+
+impl From<std::io::Error> for DbError {
+    fn from(err: std::io::Error) -> Self {
+        DbError::Io(err)
     }
 }
 
@@ -164,6 +178,8 @@ pub struct RunOverride {
 
 pub struct Db {
     conn: Connection,
+    /// The database file; None in memory.
+    path: Option<PathBuf>,
 }
 
 impl Db {
@@ -173,19 +189,19 @@ impl Db {
         // WAL lets the screens read while the importer writes.
         conn.pragma_update_and_check(None, "journal_mode", "wal", |row| row.get::<_, String>(0))?;
         conn.pragma_update(None, "synchronous", "normal")?;
-        Self::prepare(conn)
+        Self::prepare(conn, Some(path.to_path_buf()))
     }
 
     /// A throwaway database, for tests.
     pub fn open_in_memory() -> Result<Db> {
-        Self::prepare(Connection::open_in_memory()?)
+        Self::prepare(Connection::open_in_memory()?, None)
     }
 
-    fn prepare(mut conn: Connection) -> Result<Db> {
+    fn prepare(mut conn: Connection, path: Option<PathBuf>) -> Result<Db> {
         conn.pragma_update(None, "foreign_keys", true)?;
         conn.busy_timeout(Duration::from_secs(5))?;
         migrate(&mut conn)?;
-        Ok(Db { conn })
+        Ok(Db { conn, path })
     }
 
     pub fn schema_version(&self) -> Result<i64> {

@@ -1,7 +1,11 @@
 //! What the screens read and change: runs, the player's decisions, benchmarks, the plan, the
 //! training log and settings. TypeScript turns these rows into the screens' data.
 
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -11,6 +15,12 @@ use super::{Db, NewRun, Result, RunOverride, RunSource};
 
 /// The plan isn't per day yet (roadmap M4); the one standing plan is kept under this day key.
 const STANDING_PLAN: &str = "";
+
+/// Folder next to the database for copies made before a restore.
+const COPY_DIR: &str = "backups";
+const COPY_PREFIX: &str = "tracker-before-restore-";
+/// How many of those copies are kept.
+const KEPT_COPIES: usize = 5;
 
 /// A stored run as the screens get it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -326,6 +336,59 @@ impl Db {
         write_benchmarks(&tx, items)?;
         tx.commit()?;
         Ok(())
+    }
+
+    /// True once the player has anything a restore would replace or add to.
+    pub fn holds_player_data(&self) -> Result<bool> {
+        Ok(self.conn.query_row(
+            "SELECT EXISTS (SELECT 1 FROM runs WHERE deleted_at IS NULL)
+                 OR EXISTS (SELECT 1 FROM run_overrides)
+                 OR EXISTS (SELECT 1 FROM scenario_aliases)
+                 OR EXISTS (SELECT 1 FROM days)
+                 OR EXISTS (SELECT 1 FROM plans)
+                 OR EXISTS (SELECT 1 FROM tracked_benchmarks)",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
+    /// Copies the database into `backups/` next to it before a restore replaces anything, and
+    /// keeps the newest few copies. `stamp` (local time, e.g. `20261109-213005`) names the copy.
+    /// Returns where it went; None for an in-memory database or one with nothing to lose.
+    pub fn copy_before_restore(&self, stamp: &str) -> Result<Option<PathBuf>> {
+        let Some(dir) = self.path.as_deref().and_then(Path::parent) else {
+            return Ok(None);
+        };
+        if !self.holds_player_data()? {
+            return Ok(None);
+        }
+        let dir = dir.join(COPY_DIR);
+        fs::create_dir_all(&dir)?;
+        let mut copy = dir.join(format!("{COPY_PREFIX}{stamp}.db"));
+        let mut n = 1;
+        while copy.exists() {
+            n += 1;
+            copy = dir.join(format!("{COPY_PREFIX}{stamp}-{n}.db"));
+        }
+        // A consistent snapshot, even while the importer writes.
+        self.conn
+            .execute("VACUUM INTO ?1", params![copy.to_string_lossy()])?;
+        let mut copies: Vec<PathBuf> = fs::read_dir(&dir)?
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with(COPY_PREFIX) && name.ends_with(".db"))
+            })
+            .collect();
+        copies.sort_by_key(|path| fs::metadata(path).and_then(|meta| meta.modified()).ok());
+        let extra = copies.len().saturating_sub(KEPT_COPIES);
+        for old in &copies[..extra] {
+            if let Err(err) = fs::remove_file(old) {
+                log::warn!("could not remove old copy {}: {err}", old.display());
+            }
+        }
+        Ok(Some(copy))
     }
 
     /// Restores a backup in one transaction (see `Restore`). Returns how many runs were new.
@@ -875,5 +938,56 @@ mod tests {
             1,
             "a backup without benchmarks keeps the stored ones"
         );
+    }
+
+    #[test]
+    fn restores_are_preceded_by_a_copy_and_old_copies_are_pruned() {
+        let dir = std::env::temp_dir().join(format!("kovaak-copy-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let db = Db::open(&dir.join("tracker.db")).unwrap();
+
+        assert_eq!(
+            db.copy_before_restore("20261109-000000").unwrap(),
+            None,
+            "an empty database has nothing to keep"
+        );
+        assert!(
+            Db::open_in_memory()
+                .unwrap()
+                .copy_before_restore("x")
+                .unwrap()
+                .is_none()
+        );
+
+        db.save_manual_run(&manual("manual-1", 1.0), 1).unwrap();
+        let first = db.copy_before_restore("20261109-000001").unwrap().unwrap();
+        let again = db.copy_before_restore("20261109-000001").unwrap().unwrap();
+        assert_ne!(
+            first, again,
+            "a second copy in the same second gets its own name"
+        );
+        let copy = Db::open(&first).unwrap();
+        let runs = copy.load_app_data().unwrap().runs;
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].identity, "manual-1");
+        drop(copy);
+
+        for n in 2..=7 {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            db.copy_before_restore(&format!("20261109-00000{n}"))
+                .unwrap();
+        }
+        let mut kept: Vec<String> = fs::read_dir(dir.join(COPY_DIR))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        kept.sort();
+        assert_eq!(kept.len(), KEPT_COPIES);
+        assert_eq!(kept[0], "tracker-before-restore-20261109-000003.db");
+        assert_eq!(kept[4], "tracker-before-restore-20261109-000007.db");
+
+        drop(db);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

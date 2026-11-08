@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createTauriData, DESKTOP_STATS_DIR_KEY, importSummaryMessage, type TauriBackend } from "../../src/data/tauriData.ts";
-import { benchmarksFromRows, recordFromRun, restoreFromBackup, rowsFromBenchmarks, runFromRecord, type AppData, type StoredRun } from "../../src/data/tauriRows.ts";
-import { APP_STORAGE_KEY, LEGACY_STORAGE_KEY } from "../../src/data/legacyState.ts";
+import { benchmarksFromRows, recordFromRun, restoreFromBackup, restoreReport, rowsFromBenchmarks, runFromRecord, type AppData, type Restore, type StoredRun } from "../../src/data/tauriRows.ts";
+import { APP_STORAGE_KEY, LEGACY_STORAGE_KEY, newManualId } from "../../src/data/legacyState.ts";
 import { sampleThresholds, rankColors } from "../../src/data/fixtures/designSample.ts";
 import { compactRecord } from "../../src/data/recordStore.ts";
 import { parseKovaakCsvWithStatus } from "../../src/services/csv.ts";
@@ -89,6 +89,22 @@ function fakeBackend(data: AppData = savedData()) {
           case "stats_dir_set":
           case "import_rescan":
             return { files: 10, read: 2, added: 1, failed: [] };
+          case "data_restore": {
+            // As Db::restore: manual runs and choices are replaced, imported runs stay.
+            const restore = args!.backup as Restore;
+            data.runs = data.runs.filter((run) => run.source !== "manual");
+            const stored = new Set(data.runs.map((run) => run.identity));
+            let added = 0;
+            restore.runs.forEach((run) => {
+              if (stored.has(run.identity)) return;
+              stored.add(run.identity);
+              data.runs.push({ ...run, id: nextId++ });
+              added += 1;
+            });
+            Object.assign(data, { overrides: restore.overrides, aliases: restore.aliases, tracked: restore.tracked, days: restore.days, plan: restore.plan });
+            if (restore.benchmarks) data.benchmarks = restore.benchmarks;
+            return { added, copy: "C:\\data\\backups\\tracker-before-restore-20261106-030000.db" };
+          }
           default:
             return null;
         }
@@ -292,8 +308,26 @@ test("a browser backup is restored into the database", async () => {
     dailyReviews: { "2026-11-03": { dateKey: "2026-11-03", note: "ok" } },
     newUi: { plan: [{ scenarioName: "Smoothbot Arm", targetRuns: 2 }], aliases: { a: "Smoothbot Arm" }, moods: { "2026-11-03": { sleep: "好" } }, tracked: [{ benchmark: BENCHMARK, difficulty: "Easier" }] },
   };
-  const file = { text: async () => JSON.stringify(backup) } as File;
-  assert.equal(await data.importBackup!(file), "已恢复 2 局成绩");
+  const file = { name: "backup.json", text: async () => JSON.stringify(backup) } as File;
+  assert.equal(await data.importBackup!(file), "已导入 backup.json，数量和备份一致");
+  const report = data.getSnapshot().restoreReport!;
+  assert.deepEqual(
+    report.rows.map((row) => [row.label, row.backup, row.now]),
+    [
+      ["成绩", 2, 2],
+      ["其中手动录入", 1, 1],
+      ["忽略 / 确认的成绩", 1, 1],
+      ["追踪的 benchmark", 2, 2],
+      ["场景匹配", 1, 1],
+      ["计划", 1, 1],
+      ["训练日志（天）", 1, 1],
+    ],
+  );
+  assert.equal(report.otherRuns, 3, "runs already imported from the folder stay");
+  assert.equal(report.copy, "C:\\data\\backups\\tracker-before-restore-20261106-030000.db");
+  assert.equal(data.getSnapshot().records.length, 5);
+  data.dismissRestoreReport!();
+  assert.equal(data.getSnapshot().restoreReport, null);
   const restore = fake.called("data_restore")[0].args!.backup as ReturnType<typeof restoreFromBackup>;
   assert.deepEqual(
     restore.runs.map((run) => [run.identity, run.source, run.sourceFile]),
@@ -311,6 +345,50 @@ test("a browser backup is restored into the database", async () => {
   assert.deepEqual(benchmarksFromRows(restore.benchmarks!), benchmarks, "benchmarks survive the trip through database rows");
   assert.equal(fake.called("data_load").length, 2, "reloaded after the restore");
   await assert.rejects(data.importBackup!({ text: async () => "{}" } as File), /不是可识别的备份文件/);
+});
+
+test("manual runs added in the same millisecond keep apart", async () => {
+  assert.equal(newManualId([], 5), "manual-5");
+  assert.equal(newManualId([{ id: "manual-5" }, { id: "manual-5-2" }], 5), "manual-5-3");
+
+  const twin = { id: "manual-7", scenario: "Smoothbot Arm", score: 1, date: "2026-11-03T12:00:00.000Z", source: "manual" };
+  const restore = restoreFromBackup({ manualRecords: [twin, { ...twin, score: 2 }] as ScoreRecord[] }, 0, benchmarks);
+  assert.deepEqual(
+    restore.runs.map((run) => [run.identity, run.score]),
+    [
+      ["manual-7", 1],
+      ["manual-7-2", 2],
+    ],
+  );
+
+  const data = await loaded(fakeBackend());
+  data.addManualRun({ scenario: "Smoothbot Arm", score: 1, date: "2026-11-06T02:00:00" });
+  data.addManualRun({ scenario: "Smoothbot Arm", score: 2, date: "2026-11-06T02:00:00" });
+  const ids = data.getSnapshot().records.filter((record) => record.source === "manual").map((record) => record.id);
+  assert.equal(new Set(ids).size, ids.length);
+});
+
+test("the restore check shows what didn't arrive", () => {
+  const restore: Restore = {
+    runs: [fileRun(1, 2580, 1), fileRun(2, 2620, 2), fileRun(2, 2620, 2)].map(({ id: _id, ...run }) => ({ ...run, source: "legacy" as const })),
+    overrides: [],
+    aliases: [],
+    benchmarks: null,
+    tracked: [],
+    days: [
+      { dayKey: "2026-11-01", mood: {}, note: "" },
+      { dayKey: "2026-11-02", mood: {}, note: "ok" },
+    ],
+    plan: [],
+    setup: null,
+    settings: {},
+  };
+  const data: AppData = { ...savedData(), runs: [fileRun(1, 2580, 1), fileRun(9, 2000, 4)], overrides: [], aliases: [], tracked: [], days: [{ dayKey: "2026-11-02", mood: {}, note: "ok" }], plan: [] };
+  const report = restoreReport(restore, data, "b.json", null);
+  assert.deepEqual(report.rows[0], { label: "成绩", backup: 2, now: 1 }, "a backup run is missing; duplicates count once");
+  assert.deepEqual(report.rows[6], { label: "训练日志（天）", backup: 1, now: 1 }, "empty days are not stored, so not expected");
+  assert.equal(report.otherRuns, 1);
+  assert.equal(report.copy, null);
 });
 
 test("data from the interim desktop app's webview storage moves into an empty database once", async () => {
