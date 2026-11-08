@@ -24,3 +24,6 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-http = "2"
 rusqlite = { version = "0.41.1", features = ["bundled"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+regex = "1.13.1"
+notify = "8.2.2"

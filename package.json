@@ -11,7 +11,8 @@
     "check:ts-modules": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-ts-modules.mjs",
     "check:fallback": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-fallback-parity.mjs",
     "check:react-parity": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-react-parity.mjs",
-    "capture:ui-qa": "node scripts/capture-ui-qa.mjs"
+    "check:csv-parity": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/compare-csv-parsers.mjs",
+    "capture:ui-qa":"node scripts/capture-ui-qa.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
