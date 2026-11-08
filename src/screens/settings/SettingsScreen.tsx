@@ -6,7 +6,7 @@ import type { SetupProfile } from "../../domain/types.ts";
 import { useSnapshot, useTrackerData } from "../../app/data.tsx";
 import { trackedId } from "../../data/trackerData.ts";
 import { useAction } from "../../app/useAction.ts";
-import { ensureNotificationPermission } from "../../app/useRunNotifications.ts";
+import { ensureNotificationPermission, notificationsBlocked } from "../../app/useRunNotifications.ts";
 import { routeHref } from "../../app/router.ts";
 import { Segmented, SettingRow, Switch, TextField } from "../../ui/Controls.tsx";
 import { fmtDateTime } from "../../ui/format.ts";
@@ -120,9 +120,11 @@ export function SettingsScreen() {
           <SettingRow
             label="打完一局后通知"
             help={
-              typeof Notification !== "undefined" && Notification.permission === "denied"
+              notificationsBlocked()
                 ? "浏览器已禁止这个页面发通知，请在地址栏左侧的网站设置里允许"
-                : "游戏里也能看到分数、个人最佳和升段提示（页面在后台时弹出系统通知）"
+                : snapshot.source === "tauri"
+                  ? "游戏里也能看到分数、个人最佳和升段提示（窗口不在前台或收进托盘时弹出 Windows 通知）"
+                  : "游戏里也能看到分数、个人最佳和升段提示（页面不在前台时弹出系统通知）"
             }
           >
             <Switch

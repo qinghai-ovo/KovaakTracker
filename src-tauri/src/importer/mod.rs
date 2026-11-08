@@ -64,6 +64,8 @@ pub struct WatcherStatus {
     pub watching: bool,
     /// Why the folder can't be watched or read, if it can't.
     pub error: Option<String>,
+    /// Automatic import ("自动导入新成绩"): watch the folder and catch up at startup.
+    pub auto: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -117,6 +119,12 @@ impl Importer {
         self.jobs.send(job).map_err(|_| STOPPED.to_owned())
     }
 
+    /// Pauses watching if it's on, resumes it if it's off (the tray menu).
+    pub fn toggle_auto(&self) -> Result<(), String> {
+        let auto = lock(&self.status).auto;
+        self.queue(Job::SetAuto(!auto))
+    }
+
     /// Queues a job and waits (off the main thread) for the import it leads to.
     async fn request(
         &self,
@@ -168,6 +176,11 @@ impl Worker {
             if self.auto {
                 pending = Some(ScanOptions::default());
             }
+        } else {
+            self.set_status(WatcherStatus {
+                auto: self.auto,
+                ..WatcherStatus::default()
+            });
         }
 
         loop {
@@ -210,6 +223,10 @@ impl Worker {
                     self.save(AUTO_IMPORT_KEY, auto);
                     self.auto = auto;
                     let Some(dir) = self.dir.clone() else {
+                        self.set_status(WatcherStatus {
+                            auto,
+                            ..WatcherStatus::default()
+                        });
                         continue;
                     };
                     self.use_dir(dir);
@@ -236,6 +253,7 @@ impl Worker {
                 dir: shown,
                 watching: false,
                 error: None,
+                auto: false,
             });
         }
     }
@@ -268,6 +286,7 @@ impl Worker {
                     dir: shown,
                     watching: true,
                     error: None,
+                    auto: true,
                 }
             }
             Err(err) => {
@@ -276,6 +295,7 @@ impl Worker {
                     dir: shown,
                     watching: false,
                     error: Some(format!("无法监听 stats 文件夹：{err}")),
+                    auto: true,
                 }
             }
         };
@@ -284,6 +304,7 @@ impl Worker {
 
     fn set_status(&self, status: WatcherStatus) {
         *lock(&self.status) = status.clone();
+        crate::tray::show_status(&self.app, &status);
         let _ = self.app.emit("watcher:status", status);
     }
 

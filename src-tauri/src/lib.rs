@@ -1,6 +1,7 @@
 mod commands;
 pub mod db;
 pub mod importer;
+mod tray;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -21,8 +22,15 @@ impl AppDb {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // First, so a second launch (the app is often in the tray) only brings the window back
+        // instead of starting another importer on the same database.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tray::show_main(app);
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_notification::init())
+        .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::data_load,
             commands::runs_after,
@@ -51,6 +59,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            // Before the importer, which reports its state to the tray.
+            tray::setup(app.handle())?;
             // Without a database the window still opens and says why (data_load returns the error).
             let db = match open_db(app.handle()) {
                 Ok(db) => {

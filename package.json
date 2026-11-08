@@ -12,7 +12,7 @@
     "check:fallback": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-fallback-parity.mjs",
     "check:react-parity": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-react-parity.mjs",
     "check:csv-parity": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/compare-csv-parsers.mjs",
-    "capture:ui-qa":"node scripts/capture-ui-qa.mjs"
+    "capture:ui-qa": "node scripts/capture-ui-qa.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -22,6 +22,7 @@
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.4",
     "@tauri-apps/plugin-http": "^2.8.3",
+    "@tauri-apps/plugin-notification": "^2.8.0",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
