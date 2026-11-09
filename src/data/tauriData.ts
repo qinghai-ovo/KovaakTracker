@@ -79,6 +79,8 @@ interface WatcherStatus {
   dir: string | null;
   watching: boolean;
   error: string | null;
+  /** Automatic import; the tray menu can pause and resume it too. */
+  auto: boolean;
 }
 
 interface ImportStatus extends WatcherStatus {
@@ -171,6 +173,9 @@ export function createTauriData({
     watching = status.watching;
     folderError = status.error;
     if (status.dir) legacy = { ...legacy, statsFolderName: status.dir };
+    if (typeof status.auto === "boolean" && status.auto !== store.preferences.autoImport) {
+      store = { ...store, preferences: { ...store.preferences, autoImport: status.auto } };
+    }
   }
 
   async function refreshImportStatus() {

@@ -282,6 +282,11 @@ test("new runs from the importer are added once and announced", async () => {
   fake.emit("watcher:status", { dir: "D:\\stats", watching: false, error: "无法监听 stats 文件夹：gone" });
   assert.equal(data.getSnapshot().watching, false);
   assert.equal(data.getSnapshot().folderError, "无法监听 stats 文件夹：gone");
+  assert.equal(data.getSnapshot().preferences.autoImport, true);
+  // Paused from the tray menu: the settings switch follows.
+  fake.emit("watcher:status", { dir: "D:\\stats", watching: false, error: null, auto: false });
+  assert.equal(data.getSnapshot().preferences.autoImport, false);
+  assert.equal(fake.called("import_set_auto").length, 0, "the importer already knows");
 });
 
 test("choosing the folder and rescanning wait for the import and report it", async () => {

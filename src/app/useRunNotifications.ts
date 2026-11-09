@@ -1,38 +1,67 @@
 import { useEffect } from "react";
-import { rankIndexForScore } from "../domain/rank.ts";
-import { resolveScenarioName } from "../domain/screens/data.ts";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import type { TrackerData } from "../data/trackerData.ts";
+import { freshRuns, playerIsElsewhere, runNotice, type RunNotice } from "./runNotice.ts";
 
 /**
- * "打完一局后通知": when new runs arrive while the page is in the background (the player is in
- * KovaaK), show a system notification with the score, a new PB and the rank reached.
+ * "打完一局后通知": when new runs arrive while the player is elsewhere (in KovaaK, or the desktop
+ * app is in the tray), show a system notification with the score, a new PB and the rank reached.
+ * The desktop app uses Windows notifications; the browser its own.
  */
 export function useRunNotifications(data: TrackerData) {
   useEffect(
     () =>
       data.onEvent((event) => {
         const snapshot = data.getSnapshot();
-        if (!snapshot.preferences.notifyAfterRun || typeof Notification === "undefined" || Notification.permission !== "granted") return;
-        if (typeof document !== "undefined" && document.visibilityState === "visible") return;
-        const rankNames = Object.keys(snapshot.benchmark.rankColors);
-        event.records.slice(-3).forEach((record) => {
-          const name = resolveScenarioName(record.scenario, snapshot.benchmark.scenarios, snapshot.aliases);
-          const scenario = snapshot.benchmark.scenarios.find((item) => item.name === name);
-          const earlier = snapshot.records.filter((item) => item !== record && resolveScenarioName(item.scenario, snapshot.benchmark.scenarios, snapshot.aliases) === name);
-          const isPb = Boolean(name) && earlier.length > 0 && earlier.every((item) => item.score < record.score);
-          const rankIndex = scenario ? rankIndexForScore(record.score, scenario.rankMaxes ?? []) : -1;
-          const parts = [`${record.score} 分`, isPb ? "新的个人最佳" : null, rankIndex >= 0 ? rankNames[rankIndex] : null].filter(Boolean);
-          new Notification(name ?? record.scenario, { body: parts.join(" · "), tag: `run-${record.id ?? record.date}` });
+        const fresh = freshRuns(event.records, new Date());
+        if (!snapshot.preferences.notifyAfterRun || !fresh.length) return;
+        void elsewhere().then((away) => {
+          if (away) fresh.forEach((record) => void show(runNotice(record, snapshot)));
         });
       }),
     [data],
   );
 }
 
+/**
+ * Whether the player is away from the app. A desktop window hidden in the tray still tells its
+ * page it is visible and focused, so the desktop app asks the window itself.
+ */
+async function elsewhere(): Promise<boolean> {
+  if (isTauri()) {
+    try {
+      const window = getCurrentWindow();
+      const [visible, minimized, focused] = await Promise.all([window.isVisible(), window.isMinimized(), window.isFocused()]);
+      return !visible || minimized || !focused;
+    } catch {
+      return true;
+    }
+  }
+  return playerIsElsewhere(typeof document === "undefined" ? undefined : document);
+}
+
+async function show(notice: RunNotice) {
+  if (isTauri()) {
+    if (await isPermissionGranted()) sendNotification({ title: notice.title, body: notice.body });
+    return;
+  }
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    new Notification(notice.title, { body: notice.body, tag: notice.tag });
+  }
+}
+
 /** Asks for notification permission; call from a click so the browser shows the prompt. */
 export async function ensureNotificationPermission(): Promise<boolean> {
+  if (isTauri()) return (await isPermissionGranted()) || (await requestPermission()) === "granted";
   if (typeof Notification === "undefined") return false;
   if (Notification.permission === "granted") return true;
   if (Notification.permission === "denied") return false;
   return (await Notification.requestPermission()) === "granted";
+}
+
+/** True when the browser has been told not to let this page notify. */
+export function notificationsBlocked(): boolean {
+  return !isTauri() && typeof Notification !== "undefined" && Notification.permission === "denied";
 }
