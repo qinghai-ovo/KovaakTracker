@@ -8,8 +8,8 @@ const close = (actual: number | null, expected: number, message?: string) =>
   assert.ok(actual !== null && Math.abs(actual - expected) < 1e-6, `${message ?? ""} expected ${expected}, got ${actual}`);
 
 function buildToday(overrides: Partial<Parameters<typeof todayScreen>[0]> = {}) {
-  const { scenarios, records, plan } = todayFixture();
-  return todayScreen({ scenarios, plan, rankColors, recordsForScenario: recordsLookup(records), exclusions: {}, now: NOW, ...overrides });
+  const { scenarios, records } = todayFixture();
+  return todayScreen({ scenarios, rankColors, recordsForScenario: recordsLookup(records), exclusions: {}, now: NOW, ...overrides });
 }
 
 test("today: Smoothbot Arm matches the design (rank by PB, stable marker, in-rank progress)", () => {
@@ -26,15 +26,21 @@ test("today: Smoothbot Arm matches the design (rank by PB, stable marker, in-ran
   assert.equal(arm.runs.length, 4);
   assert.equal(arm.countedRuns, 3, "980 is suspicious and ignored by default");
   assert.deepEqual(arm.runs.map((r) => [r.score, r.excluded, r.suspicious]), [[2610, false, false], [2702, false, false], [980, true, true], [2740, false, false]]);
-  assert.equal(arm.done, false);
   assert.equal(arm.latest, 2740);
   close(arm.todayAverage, (2610 + 2702 + 2740) / 3);
   close(arm.stable, 2677.2, "stable = last 10 counted runs");
   close(arm.stableGap, 2740 - 2677.2);
   assert.ok(arm.stableProgress! < arm.personalBestProgress);
+
+  // Today against the usual level (the stable window over the runs before today) and the PB.
+  const average = (2610 + 2702 + 2740) / 3;
+  close(arm.usual, 2647, "last 10 runs before today");
+  close(arm.averageVsUsual, average - 2647);
+  close(arm.averageOfBest, average / 2740);
+  assert.ok(arm.todayAverageProgress! > arm.usualProgress! && arm.todayAverageProgress! < arm.personalBestProgress);
 });
 
-test("today: totals, feed and suggestion", () => {
+test("today: played scenarios, totals, feed and suggestion", () => {
   const view = buildToday();
   assert.deepEqual(view.scenarios.map((s) => [s.name, s.rank.name]), [
     ["Smoothbot Arm", "Puffin"],
@@ -44,7 +50,10 @@ test("today: totals, feed and suggestion", () => {
     ["Micro Flick", "Lemming"],
     ["Controlsphere", "Ermine"],
   ]);
-  assert.deepEqual(view.totals, { countedRuns: 9, newPersonalBests: 3, doneScenarios: 1, plannedScenarios: 6 });
+  assert.deepEqual(view.played.map((s) => s.name), ["Pasu Reading", "Speed Switch", "Wrist Strafe", "Smoothbot Arm"], "only played scenarios, most recent first");
+  assert.deepEqual(view.totals, { countedRuns: 9, newPersonalBests: 3, playedScenarios: 4 });
+  const micro = view.scenarios.find((s) => s.name === "Micro Flick")!;
+  assert.deepEqual([micro.runs.length, micro.lastPlayed, micro.todayAverage, micro.averageVsUsual], [0, null, null, null]);
   assert.equal(view.feed.length, 10);
   assert.equal(view.feed[0].scenarioName, "Pasu Reading", "newest first");
   assert.deepEqual(view.feed.filter((r) => r.isPersonalBest).map((r) => `${r.scenarioName} ${r.score}`).sort(), [
@@ -68,9 +77,9 @@ test("today: settings change the result everywhere", () => {
 });
 
 test("today: a run at 02:30 still belongs to the previous training day", () => {
-  const { scenarios, records, plan } = todayFixture();
+  const { scenarios, records } = todayFixture();
   records.push({ id: "late", scenario: "Pasu Reading", score: 875, date: "2026-11-04T02:30:00", source: "csv" });
-  const view = todayScreen({ scenarios, plan, rankColors, recordsForScenario: recordsLookup(records), exclusions: {}, now: new Date(2026, 10, 4, 3, 0) });
+  const view = todayScreen({ scenarios, rankColors, recordsForScenario: recordsLookup(records), exclusions: {}, now: new Date(2026, 10, 4, 3, 0) });
   assert.equal(view.dayKey, "2026-11-03");
   assert.equal(view.scenarios.find((s) => s.name === "Pasu Reading")!.countedRuns, 2);
 });
@@ -112,10 +121,11 @@ test("map: category ranks, overall rank and insights", () => {
   }
   const weakest = view.categories.slice().sort((a, b) => a.rank.progress - b.rank.progress)[0];
   assert.equal(view.insights.weakestCategory?.name, weakest.name);
-  assert.equal(view.overall.progress, weakest.rank.progress, "overall rank defaults to the weakest category");
 
-  const average = mapScreen({ scenarios, rankColors, recordsForScenario: recordsLookup(records), exclusions: {}, now: NOW, settings: { overallRankRule: "average" } });
-  close(average.overall.progress, view.categories.reduce((s, c) => s + c.rank.progress, 0) / view.categories.length);
+  // Overall rank as KovaaK computes it: every scenario counts the same, so bigger categories weigh more.
+  const allRows = view.categories.flatMap((c) => c.subcategories.flatMap((s) => s.scenarios));
+  close(view.overall.progress, allRows.reduce((sum, r) => sum + r.rank.progress, 0) / allRows.length);
+  assert.notEqual(view.overall.progress, view.categories.reduce((s, c) => s + c.rank.progress, 0) / view.categories.length, "not the average of categories");
 
   const closest = view.insights.closestRankUp!;
   const rows = view.categories.flatMap((c) => c.subcategories.flatMap((s) => s.scenarios));

@@ -2,7 +2,7 @@
 .app { min-height: 100vh; display: flex; flex-wrap: wrap; }
 .app__main { flex: 999 1 640px; min-width: 0; padding: 30px 34px 44px; display: flex; flex-direction: column; gap: 22px; }
 
-.nav { flex: 1 1 220px; max-width: 260px; padding: 26px 18px; display: flex; flex-direction: column; gap: 28px; background: var(--surface); border-right: 1px solid var(--line); }
+.nav { flex: 1 1 220px; max-width: 260px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; padding: 26px 18px; display: flex; flex-direction: column; gap: 28px; background: var(--surface); border-right: 1px solid var(--line); }
 .nav__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
 .nav__brand-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 0.02em; line-height: 1.1; }
 .nav__brand-sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.24em; color: var(--muted); }
@@ -14,16 +14,17 @@
 .nav__divider { height: 1px; margin: 8px 12px; background: var(--line); }
 .nav__bench { display: flex; flex-direction: column; gap: 10px; padding: 0 12px; }
 
-.tracked { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+/* The list scrolls on its own when many benchmarks are followed; dragging near its edges scrolls it. */
+.tracked { list-style: none; margin: 0 -8px; padding: 4px 0; display: flex; flex-direction: column; gap: 4px; max-height: max(96px, calc(100vh - 510px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .tracked__item { position: relative; display: flex; align-items: stretch; border-radius: 10px; }
 .tracked__item:hover { background: var(--surface-muted); }
 .tracked__item.is-active { background: #eef5f7; box-shadow: inset 0 0 0 1px rgba(14, 116, 144, 0.22); }
-.tracked__item.is-dragging { opacity: 0.45; }
 .tracked__item.drop-before::before, .tracked__item.drop-after::after { content: ""; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent); }
 .tracked__item.drop-before::before { top: -3px; }
 .tracked__item.drop-after::after { bottom: -3px; }
-.tracked__item[draggable="true"] { cursor: grab; }
-.tracked__item[draggable="true"]:active { cursor: grabbing; }
+.tracked__grip { cursor: grab; touch-action: none; }
+.tracked.is-sorting, .tracked.is-sorting * { cursor: grabbing !important; user-select: none; }
+.tracked__item.is-dragging { z-index: 1; background: var(--surface); box-shadow: 0 6px 18px rgba(15, 22, 38, 0.14); opacity: 1; }
 .tracked__grip { display: grid; place-items: center; width: 16px; margin-left: 2px; color: var(--faint); opacity: 0; transition: opacity 0.12s; }
 .tracked__item:hover .tracked__grip, .tracked__item:focus-within .tracked__grip, .tracked__item.is-dragging .tracked__grip { opacity: 1; }
 .tracked__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 8px 10px 6px; border-radius: 10px; }
@@ -36,10 +37,11 @@
 .nav__live { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 14px 12px; border-radius: 12px; background: var(--surface-muted); }
 
 @media (max-width: 860px) {
-  .nav { max-width: none; flex-basis: 100%; border-right: 0; border-bottom: 1px solid var(--line); gap: 16px; }
+  .nav { max-width: none; flex-basis: 100%; position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); gap: 16px; }
   .nav__links { flex-direction: row; flex-wrap: wrap; }
   .nav__divider { display: none; }
   .nav__live { margin-top: 0; }
+  .tracked { overflow-y: visible; }
   .app__main { padding: 22px 16px 32px; }
 }
 
@@ -132,9 +134,12 @@ a.btn-primary:hover { color: #fff; }
 .rank-ladder__seg.is-current { box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 3px var(--ring); z-index: 1; }
 .rank-ladder--sm .rank-ladder__seg.is-current { height: 8px; }
 .rank-ladder__fill { position: absolute; top: 0; bottom: 0; left: 0; }
-.rank-ladder__stable, .rank-ladder__pb { position: absolute; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); }
+.rank-ladder__stable, .rank-ladder__pb { position: absolute; top: 50%; z-index: 2; border-radius: 50%; transform: translate(-50%, -50%); }
+.rank-ladder__pb { z-index: 3; }
 .rank-ladder__stable { width: 14px; height: 14px; background: #fff; border: 2px solid var(--text); }
 .rank-ladder--sm .rank-ladder__stable { width: 10px; height: 10px; }
+.rank-ladder__avg { position: absolute; top: 50%; z-index: 2; width: 11px; height: 11px; background: var(--text); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--text); transform: translate(-50%, -50%) rotate(45deg); }
+.legend-diamond { width: 8px; height: 8px; margin: 0 1px; flex: none; background: var(--text); transform: rotate(45deg); }
 .rank-ladder__pb { width: 16px; height: 16px; background: var(--marker); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--marker); }
 
 .rank-palette { display: flex; gap: 3px; align-items: center; height: 12px; }

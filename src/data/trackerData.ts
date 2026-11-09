@@ -1,5 +1,4 @@
 import type { ScenarioAliases } from "../domain/screens/data.ts";
-import type { TodayPlanItem } from "../domain/screens/today.ts";
 import type { ScreenSettings } from "../domain/screens/shared.ts";
 import type { BenchmarkScenario, RecordExclusion, ScoreRecord, SetupProfile } from "../domain/types.ts";
 
@@ -67,6 +66,12 @@ export interface DayEntry {
 export interface FailedImport {
   fileName: string;
   reason: string;
+}
+
+/** A scenario saved to the old "today's plan"; still stored and backed up, no longer shown. */
+export interface TodayPlanItem {
+  scenarioName: string;
+  targetRuns: number;
 }
 
 /** Everything the screens need, as one immutable snapshot. */

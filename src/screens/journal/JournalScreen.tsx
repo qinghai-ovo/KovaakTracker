@@ -33,7 +33,6 @@ export function JournalScreen({ dayParam }: { dayParam: string | null }) {
   const entry = snapshot.days[view.selectedDay] ?? { mood: {}, note: "" };
   const previousDay = [...view.trainingDays].reverse().find((day) => day < view.selectedDay) ?? null;
   const nextDay = view.trainingDays.find((day) => day > view.selectedDay) ?? (view.selectedDay < view.today ? view.today : null);
-  const isToday = view.selectedDay === view.today;
 
   return (
     <>
@@ -90,7 +89,7 @@ export function JournalScreen({ dayParam }: { dayParam: string | null }) {
               sub={view.totals.minutesDelta === null ? "这是第一个训练日" : `比上个训练日 ${view.totals.minutesDelta >= 0 ? "+" : "−"}${Math.abs(view.totals.minutesDelta)} 分钟`}
             />
             <JournalTotal label="有效局数" value={String(view.totals.countedRuns)} sub={view.totals.ignoredRuns ? `另有 ${view.totals.ignoredRuns} 局被忽略` : "没有被忽略的局"} />
-            <JournalTotal label="练过的场景" value={String(view.totals.scenarios)} sub={isToday ? `今日计划 ${snapshot.plan.length} 个` : " "} />
+            <JournalTotal label="练过的场景" value={String(view.totals.scenarios)} sub=" " />
             <JournalTotal label="新纪录" value={String(view.totals.newPersonalBests.length)} sub={view.totals.newPersonalBests.join(" · ") || "没有"} accent={view.totals.newPersonalBests.length > 0} />
           </div>
 

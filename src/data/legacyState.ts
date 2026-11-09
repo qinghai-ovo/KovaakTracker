@@ -1,13 +1,11 @@
 // Converts the classic app's saved state (react.html, localStorage "kovaak-benchmark-tracker-v2")
 // into the new UI's snapshot, and the new UI's changes back into that state.
-import type { OverallRankRule } from "../domain/category.ts";
 import type { SuspiciousPolicy } from "../domain/exclusions.ts";
 import type { StableWindow } from "../domain/metrics.ts";
 import type { ScenarioAliases } from "../domain/screens/data.ts";
 import { defaultScreenSettings, type ScreenSettings } from "../domain/screens/shared.ts";
-import type { TodayPlanItem } from "../domain/screens/today.ts";
 import type { AppState, Benchmark, DailyReviewEntry } from "../domain/types.ts";
-import { defaultPreferences, trackedId, type AppPreferences, type CatalogEntry, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type RestoreReport, type TrackedBenchmark, type TrackerSnapshot } from "./trackerData.ts";
+import { defaultPreferences, trackedId, type AppPreferences, type CatalogEntry, type DayEntry, type FailedImport, type FolderAccess, type MoodKey, type RestoreReport, type TodayPlanItem, type TrackedBenchmark, type TrackerSnapshot } from "./trackerData.ts";
 
 /** localStorage key the classic app reads and writes. */
 export const LEGACY_STORAGE_KEY = "kovaak-benchmark-tracker-v2";
@@ -45,7 +43,6 @@ export const emptyAppStore: AppStore = {
 
 const STABLE_WINDOWS: StableWindow[] = ["last10", "last20", "week"];
 const POLICIES: SuspiciousPolicy[] = ["ignore", "warn"];
-const OVERALL_RULES: OverallRankRule[] = ["weakest", "average"];
 
 /** Reads the app store defensively; unknown or broken values fall back to defaults. */
 export function parseAppStore(raw: string | null): AppStore {
@@ -66,7 +63,6 @@ export function parseAppStore(raw: string | null): AppStore {
       dayStartHour: Number.isInteger(settings.dayStartHour) && settings.dayStartHour! >= 0 && settings.dayStartHour! < 12 ? settings.dayStartHour! : defaultScreenSettings.dayStartHour,
       stableWindow: STABLE_WINDOWS.includes(settings.stableWindow as StableWindow) ? (settings.stableWindow as StableWindow) : defaultScreenSettings.stableWindow,
       suspiciousPolicy: POLICIES.includes(settings.suspiciousPolicy as SuspiciousPolicy) ? (settings.suspiciousPolicy as SuspiciousPolicy) : defaultScreenSettings.suspiciousPolicy,
-      overallRankRule: OVERALL_RULES.includes(settings.overallRankRule as OverallRankRule) ? (settings.overallRankRule as OverallRankRule) : defaultScreenSettings.overallRankRule,
     },
     preferences: {
       autoImport: typeof preferences.autoImport === "boolean" ? preferences.autoImport : defaultPreferences.autoImport,

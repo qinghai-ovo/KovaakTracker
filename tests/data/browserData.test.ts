@@ -75,7 +75,6 @@ test("real UTC timestamps land on the right training day", () => {
     recordsForScenario: (name) => snapshot.records.filter((record) => record.scenario === name),
     exclusions: snapshot.exclusions,
     now: snapshot.now,
-    plan: [{ scenarioName: "Smoothbot Arm", targetRuns: 3 }],
   });
   assert.equal(view.dayKey, "2026-11-05");
   const arm = view.scenarios[0];

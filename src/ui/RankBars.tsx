@@ -10,14 +10,16 @@ interface RankLadderProps {
   /** Ladder positions (0..100) for the filled PB marker and the hollow stable marker. */
   pbProgress?: number | null;
   stableProgress?: number | null;
+  /** Ladder position (0..100) of today's average, drawn as a diamond. */
+  averageProgress?: number | null;
   markerColor?: string;
   size?: "lg" | "sm";
   /** Highest rank reached (the PB rank); its segment is drawn taller with a ring. -1 or omitted: none. */
   currentIndex?: number;
 }
 
-/** The rank bar, filled to the PB, with optional PB (filled) and stable (hollow) markers. */
-export function RankLadder({ thresholds, styles, score, pbProgress, stableProgress, markerColor, size = "lg", currentIndex = -1 }: RankLadderProps) {
+/** The rank bar, filled to the PB, with optional PB (filled), stable (hollow) and today's average (diamond) markers. */
+export function RankLadder({ thresholds, styles, score, pbProgress, stableProgress, averageProgress, markerColor, size = "lg", currentIndex = -1 }: RankLadderProps) {
   return (
     <span className={`rank-ladder rank-ladder--${size}`}>
       {thresholds.map((threshold, index) => {
@@ -36,6 +38,9 @@ export function RankLadder({ thresholds, styles, score, pbProgress, stableProgre
       })}
       {stableProgress !== null && stableProgress !== undefined ? (
         <span className="rank-ladder__stable" title="稳定水平" style={{ left: `${stableProgress}%` }} />
+      ) : null}
+      {averageProgress !== null && averageProgress !== undefined ? (
+        <span className="rank-ladder__avg" title="今日均分" style={{ left: `${averageProgress}%` }} />
       ) : null}
       {pbProgress !== null && pbProgress !== undefined ? (
         <span className="rank-ladder__pb" title="个人最佳" style={{ left: `${pbProgress}%`, "--marker": markerColor } as CSSProperties} />
@@ -88,6 +93,11 @@ export function ProgressRing({ fraction, color, size = 34 }: { fraction: number;
       />
     </svg>
   );
+}
+
+/** Legend mark for today's average, matching the ladder diamond. */
+export function LegendDiamond() {
+  return <span className="legend-diamond" />;
 }
 
 export function LegendDot({ color, hollow = false }: { color: string; hollow?: boolean }) {

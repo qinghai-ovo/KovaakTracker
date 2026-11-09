@@ -41,7 +41,7 @@ export interface MapCategoryView {
 
 export interface MapView {
   categories: MapCategoryView[];
-  /** Sidebar overall rank, per the overallRankRule setting. */
+  /** Sidebar overall rank, computed like KovaaK's benchmark page: average progress of all scenarios. */
   overall: RankView;
   insights: {
     weakestCategory: MapCategoryView | null;
@@ -99,9 +99,8 @@ export function mapScreen(input: ScreenInput): MapView {
   });
 
   const overallPosition = overallRankPosition(
-    categories.map((category) => category.rank.progress),
+    scenarios.map((scenario) => scenario.rank.progress),
     names.length,
-    settings.overallRankRule,
   );
 
   const weakestCategory = categories.slice().sort((a, b) => a.rank.progress - b.rank.progress)[0] ?? null;
