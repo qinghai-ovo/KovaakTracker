@@ -105,7 +105,6 @@ export const SETTING = {
   dayStartHour: "rules.dayStartHour",
   stableWindow: "rules.stableWindow",
   suspicious: "rules.suspicious",
-  overallRankRule: "rules.overallRankRule",
   notifyAfterRun: "notify.afterRun",
   shortNames: "appearance.shortNames",
   showInRank: "appearance.showInRank",
@@ -249,7 +248,6 @@ export function settingRows(settings: ScreenSettings, preferences: AppPreference
     [SETTING.dayStartHour]: settings.dayStartHour,
     [SETTING.stableWindow]: settings.stableWindow,
     [SETTING.suspicious]: settings.suspiciousPolicy,
-    [SETTING.overallRankRule]: settings.overallRankRule,
     [SETTING.notifyAfterRun]: preferences.notifyAfterRun,
     [SETTING.shortNames]: preferences.shortNames,
     [SETTING.showInRank]: preferences.showInRank,
@@ -308,7 +306,6 @@ export function stateFromData(data: AppData): LoadedState {
         dayStartHour: settings[SETTING.dayStartHour],
         stableWindow: settings[SETTING.stableWindow],
         suspiciousPolicy: settings[SETTING.suspicious],
-        overallRankRule: settings[SETTING.overallRankRule],
       },
       preferences: {
         autoImport: settings[SETTING.autoImport],

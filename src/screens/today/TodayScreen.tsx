@@ -5,15 +5,23 @@ import { trainingMinutes } from "../../domain/screens/journal.ts";
 import { rankIndexForScore } from "../../domain/rank.ts";
 import { sameScenario } from "../../domain/scenario.ts";
 import { useScreenInput, useSnapshot, useTrackerData, useRankStyles } from "../../app/data.tsx";
-import { LegendDot, ProgressRing, RankLadder } from "../../ui/RankBars.tsx";
+import { LegendDiamond, LegendDot, RankLadder } from "../../ui/RankBars.tsx";
 import { fmtClock, fmtDayHeader, fmtPercent, fmtScore } from "../../ui/format.ts";
 import { rankStyleAt, type RankStyle } from "../../ui/rankStyle.ts";
 import "./today.css";
 
-const STABLE_LABEL: Record<StableWindow, string> = { last10: "近 10 局", last20: "近 20 局", week: "本周均分" };
+const USUAL_LABEL: Record<StableWindow, string> = { last10: "今天之前的近 10 局", last20: "今天之前的近 20 局", week: "今天之前的本周均分" };
 
 function sessionMinutes(view: TodayView): number {
   return trainingMinutes(view.feed.map((run) => run.date));
+}
+
+/** Today's average against the usual level: within 1% reads as "about the same". */
+function versusUsual(diff: number | null, usual: number | null): { text: string; color: string } | null {
+  if (diff === null || usual === null) return null;
+  if (Math.abs(diff) < Math.max(1, Math.abs(usual) * 0.01)) return { text: "和平时差不多", color: "var(--muted)" };
+  const sign = diff > 0 ? "+" : "−";
+  return { text: `比平时 ${sign}${fmtScore(Math.abs(diff))}`, color: diff > 0 ? "var(--positive)" : "var(--negative)" };
 }
 
 export function TodayScreen({ initialScenario }: { initialScenario: string | null }) {
@@ -21,11 +29,11 @@ export function TodayScreen({ initialScenario }: { initialScenario: string | nul
   const snapshot = useSnapshot();
   const input = useScreenInput(snapshot);
   const styles = useRankStyles(snapshot);
-  const view = useMemo(() => todayScreen({ ...input, plan: snapshot.plan }), [input, snapshot.plan]);
+  const view = useMemo(() => todayScreen(input), [input]);
   const [selectedName, setSelectedName] = useState<string | null>(initialScenario);
   const [toast, setToast] = useState<{ text: string; color: string } | null>(null);
 
-  const current = view.scenarios.find((scenario) => scenario.name === selectedName) ?? view.scenarios[0];
+  const current = view.scenarios.find((scenario) => selectedName && sameScenario(scenario.name, selectedName)) ?? view.played[0] ?? suggestNextScenario(view);
   const suggestion = current ? suggestNextScenario(view, current.name) : null;
 
   useEffect(() => {
@@ -44,6 +52,8 @@ export function TodayScreen({ initialScenario }: { initialScenario: string | nul
           ...latest.records.filter((item) => item !== record && sameScenario(item.scenario, record.scenario)).map((item) => item.score),
         );
         const style = rankStyleAt(styles, rankIndexForScore(record.score, scenario?.rankMaxes ?? []));
+        // Follow the game: show the scenario that was just played.
+        if (scenario) setSelectedName(scenario.name);
         setToast({ text: `已自动导入 · ${record.scenario} · ${record.score}${record.score > previousBest ? " · 新纪录" : ""}`, color: style.ink });
       }),
     [data, styles],
@@ -72,20 +82,20 @@ export function TodayScreen({ initialScenario }: { initialScenario: string | nul
       {current ? (
         <div className="today-grid">
           <div className="today-grid__main">
-            <ScenarioHero scenario={current} styles={styles} stableWindow={snapshot.settings.stableWindow} />
+            <ScenarioHero scenario={current} styles={styles} />
             <RunsCard scenario={current} styles={styles} onToggle={(run) => data.toggleRunCounted(findRecord(snapshot.records, run), run.counts)} />
           </div>
           <div className="today-grid__side">
-            <PlanCard view={view} styles={styles} selected={current.name} onPick={setSelectedName} onSimulate={data.simulateRun ? () => data.simulateRun?.(current.name) : undefined} />
+            <RecordCard view={view} styles={styles} selected={current.name} onPick={setSelectedName} onSimulate={data.simulateRun ? () => data.simulateRun?.(current.name) : undefined} />
             {suggestion ? <SuggestionCard scenario={suggestion} styles={styles} onPick={() => setSelectedName(suggestion.name)} /> : null}
             <FeedCard feed={view.feed} styles={styles} />
           </div>
         </div>
       ) : (
         <section className="card">
-          <span style={{ fontSize: 15, fontWeight: 500 }}>今天还没有训练计划</span>
+          <span style={{ fontSize: 15, fontWeight: 500 }}>还没有 benchmark 场景</span>
           <span className="muted" style={{ fontSize: 13 }}>
-            在能力地图里选一个场景，点"加入今日计划"。
+            在设置里选择 benchmark 并同步段位线后，这里会显示今天打过的场景。
           </span>
         </section>
       )}
@@ -132,9 +142,19 @@ function nextRankText(scenario: TodayScenarioView): ReactNode {
   );
 }
 
-function ScenarioHero({ scenario, styles, stableWindow }: { scenario: TodayScenarioView; styles: RankStyle[]; stableWindow: StableWindow }) {
+function bestLine(scenario: TodayScenarioView): { text: string; color: string } {
+  if (scenario.todayBest === null) return { text: "今天还没练", color: "var(--muted)" };
+  if (scenario.newPersonalBest) return { text: `新的个人最佳 · 比之前 +${fmtScore(scenario.personalBestGain)}`, color: "var(--accent)" };
+  if (scenario.previousBest === null) return { text: "第一次打这个场景", color: "var(--muted)" };
+  const gap = scenario.previousBest - scenario.todayBest;
+  return gap === 0 ? { text: "追平个人最佳", color: "var(--accent)" } : { text: `离个人最佳还差 ${fmtScore(gap)}`, color: "var(--muted)" };
+}
+
+function ScenarioHero({ scenario, styles }: { scenario: TodayScenarioView; styles: RankStyle[] }) {
   const rankStyle = rankStyleAt(styles, scenario.rank.index);
-  const big = scenario.todayBest ?? scenario.personalBest;
+  const played = scenario.todayBest !== null;
+  const line = bestLine(scenario);
+  const vsUsual = versusUsual(scenario.averageVsUsual, scenario.usual);
   return (
     <section className="card today-hero">
       <div className="card__glow" aria-hidden="true" style={{ background: `radial-gradient(closest-side, ${rankStyle.ink}26, rgba(255, 255, 255, 0))` }} />
@@ -159,17 +179,30 @@ function ScenarioHero({ scenario, styles, stableWindow }: { scenario: TodayScena
       <div className="today-hero__numbers">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <span className="muted" style={{ fontSize: 13 }}>
-            {scenario.todayBest !== null ? "今日最佳" : "历史最佳（今天还没练）"}
+            {played ? "今日最佳" : "个人最佳（今天还没练）"}
           </span>
-          <span className="today-hero__big">{fmtScore(big)}</span>
-          <span style={{ fontSize: 13, color: scenario.newPersonalBest ? "var(--accent)" : "var(--muted)" }}>
-            {scenario.newPersonalBest ? `新的个人最佳 · 比之前 +${fmtScore(scenario.personalBestGain)}` : `个人最佳 ${fmtScore(scenario.personalBest)}`}
-          </span>
+          <span className="today-hero__big">{fmtScore(played ? scenario.todayBest : scenario.personalBest)}</span>
+          <span style={{ fontSize: 13, fontWeight: scenario.newPersonalBest ? 600 : 400, color: line.color }}>{line.text}</span>
         </div>
-        <div className="today-hero__mini">
-          <MiniStat label="最新一局" value={fmtScore(scenario.latest)} />
-          <MiniStat label="今日均分" value={fmtScore(scenario.todayAverage)} />
-          <MiniStat label={STABLE_LABEL[stableWindow]} value={fmtScore(scenario.stable)} />
+        <div className="today-compare">
+          <CompareStat mark={<LegendDot color={rankStyle.ink} />} label="个人最佳" value={fmtScore(scenario.personalBest)} valueColor={rankStyle.ink} sub={<span style={{ color: rankStyle.ink }}>{scenario.rank.name}</span>} />
+          <CompareStat
+            mark={<LegendDiamond />}
+            label="今日均分"
+            value={fmtScore(scenario.todayAverage)}
+            emphasis
+            sub={
+              played ? (
+                <>
+                  {vsUsual ? <span style={{ color: vsUsual.color, fontWeight: 600 }}>{vsUsual.text}</span> : null}
+                  {scenario.averageOfBest !== null ? <span className="muted">个人最佳的 {fmtPercent(scenario.averageOfBest)}</span> : null}
+                </>
+              ) : (
+                <span className="muted">今天还没练</span>
+              )
+            }
+          />
+          <CompareStat mark={<LegendDot color="var(--text)" hollow />} label="平时水平" value={fmtScore(scenario.usual)} valueColor="var(--text-2)" sub={<span className="muted">{USUAL_LABEL[scenario.usualWindow]}</span>} />
         </div>
       </div>
 
@@ -179,21 +212,24 @@ function ScenarioHero({ scenario, styles, stableWindow }: { scenario: TodayScena
           styles={styles}
           score={scenario.personalBest}
           pbProgress={scenario.personalBest === null ? null : scenario.personalBestProgress}
-          stableProgress={scenario.stableProgress}
+          stableProgress={scenario.usualProgress}
+          averageProgress={scenario.todayAverageProgress}
           markerColor={rankStyle.ink}
           currentIndex={scenario.rank.index}
         />
         <div className="legend">
           <span className="legend__item">
             <LegendDot color={rankStyle.ink} />
-            个人最佳 <span className="mono">{fmtScore(scenario.personalBest)}</span>
+            个人最佳
+          </span>
+          <span className="legend__item">
+            <LegendDiamond />
+            今日均分
           </span>
           <span className="legend__item">
             <LegendDot color="var(--text)" hollow />
-            稳定水平 <span className="mono">{fmtScore(scenario.stable)}</span>
-            <span className="muted">{STABLE_LABEL[stableWindow]}</span>
+            平时水平
           </span>
-          {scenario.stableGap !== null ? <span className="muted">相差 {fmtScore(scenario.stableGap)} 分：偶尔能打到 vs 稳定能打到</span> : null}
         </div>
         <div className="today-hero__names">
           {scenario.thresholds.map((threshold, index) => {
@@ -214,31 +250,67 @@ function ScenarioHero({ scenario, styles, stableWindow }: { scenario: TodayScena
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+interface CompareStatProps {
+  mark: ReactNode;
+  label: string;
+  value: string;
+  valueColor?: string;
+  /** The stat the others are compared against: drawn larger. */
+  emphasis?: boolean;
+  sub: ReactNode;
+}
+
+function CompareStat({ mark, label, value, valueColor = "var(--text)", emphasis = false, sub }: CompareStatProps) {
   return (
-    <div className="today-mini">
-      <span className="small muted">{label}</span>
-      <span className="mono" style={{ fontSize: 22, fontWeight: 500 }}>
+    <div className={emphasis ? "today-compare__stat is-emphasis" : "today-compare__stat"}>
+      <span className="today-compare__label">
+        {mark}
+        {label}
+      </span>
+      <span className="mono today-compare__value" style={{ color: valueColor }}>
         {value}
       </span>
+      <span className="today-compare__sub">{sub}</span>
     </div>
   );
 }
 
+interface ChartLine {
+  value: number;
+  color: string;
+  label: string;
+  kind: "rank" | "best" | "average";
+}
+
+/** Spreads line labels apart so close lines stay readable; positions are in % of the chart height. */
+function spreadLabels(positions: number[], gap: number): number[] {
+  const order = positions.map((position, index) => ({ position, index })).sort((a, b) => a.position - b.position);
+  const placed: number[] = [];
+  order.forEach((item, rank) => {
+    placed[rank] = rank === 0 ? item.position : Math.max(item.position, placed[rank - 1] + gap);
+  });
+  const result = new Array<number>(positions.length);
+  order.forEach((item, rank) => (result[item.index] = placed[rank]));
+  return result;
+}
+
 function RunsCard({ scenario, styles, onToggle }: { scenario: TodayScenarioView; styles: RankStyle[]; onToggle: (run: TodayRunView) => void }) {
   const { thresholds, runs, rank } = scenario;
-  const nextIndex = Math.min(rank.index + 1, thresholds.length - 1);
   const scores = runs.map((run) => run.score);
-  const currentLine = rank.index >= 0 ? thresholds[rank.index] : null;
-  const top = Math.max(thresholds[nextIndex] ?? 0, ...scores) * 1.06;
-  const bottom = Math.min(currentLine ?? thresholds[0] ?? 0, ...scores.filter((score) => score > (thresholds[0] ?? 0) * 0.5)) * 0.88;
-  const pos = (value: number) => Math.max(2, Math.min(100, ((value - bottom) / (top - bottom || 1)) * 100));
   const counted = runs.filter((run) => run.counts).map((run) => run.score);
   const best = counted.length ? Math.max(...counted) : null;
 
-  const lines: Array<{ value: number; color: string; label: string }> = [];
-  if (currentLine !== null) lines.push({ value: currentLine, color: rankStyleAt(styles, rank.index).ink, label: rank.name });
-  if (rank.next) lines.push({ value: thresholds[rank.next.index], color: rankStyleAt(styles, rank.next.index).ink, label: rank.next.name });
+  const lines: ChartLine[] = [];
+  if (rank.next) lines.push({ value: thresholds[rank.next.index], color: rankStyleAt(styles, rank.next.index).ink, label: rank.next.name, kind: "rank" });
+  if (scenario.personalBest !== null) lines.push({ value: scenario.personalBest, color: rankStyleAt(styles, rank.index).ink, label: `PB ${fmtScore(scenario.personalBest)}`, kind: "best" });
+  if (scenario.todayAverage !== null) lines.push({ value: scenario.todayAverage, color: "var(--text)", label: `均 ${fmtScore(scenario.todayAverage)}`, kind: "average" });
+
+  const lineValues = lines.map((line) => line.value);
+  const top = Math.max(...lineValues, ...scores, 1) * 1.04;
+  const floorCandidates = [...counted, ...lineValues].filter((score) => score > (thresholds[0] ?? 0) * 0.5);
+  const bottom = Math.min(...(floorCandidates.length ? floorCandidates : [0])) * 0.9;
+  const pos = (value: number) => Math.max(2, Math.min(100, ((value - bottom) / (top - bottom || 1)) * 100));
+  const labelAt = spreadLabels(lines.map((line) => pos(line.value)), 10);
 
   return (
     <section className="card">
@@ -249,10 +321,10 @@ function RunsCard({ scenario, styles, onToggle }: { scenario: TodayScenarioView;
       {runs.length ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div className="runs-chart">
-            {lines.map((line) => (
-              <div key={line.label} aria-hidden="true">
-                <div className="runs-chart__line" style={{ bottom: `${pos(line.value)}%`, borderColor: line.color }} />
-                <span className="runs-chart__line-label mono" style={{ bottom: `${pos(line.value)}%`, color: line.color }}>
+            {lines.map((line, index) => (
+              <div key={line.kind} aria-hidden="true">
+                <div className={`runs-chart__line runs-chart__line--${line.kind}`} style={{ bottom: `${pos(line.value)}%`, borderColor: line.color }} />
+                <span className="runs-chart__line-label mono" style={{ bottom: `${labelAt[index]}%`, color: line.color, fontWeight: line.kind === "rank" ? 400 : 600 }}>
                   {line.label}
                 </span>
               </div>
@@ -288,7 +360,7 @@ function RunsCard({ scenario, styles, onToggle }: { scenario: TodayScenarioView;
                   {run.score}
                 </span>
                 <span className="muted" style={{ fontSize: 10 }}>
-                  {!run.counts ? (run.suspicious ? "可疑" : "已忽略") : run.score === best ? "最佳" : " "}
+                  {!run.counts ? (run.suspicious ? "可疑" : "已忽略") : run.isPersonalBest ? "新纪录" : run.score === best ? "最佳" : " "}
                 </span>
               </div>
             ))}
@@ -306,7 +378,7 @@ function RunsCard({ scenario, styles, onToggle }: { scenario: TodayScenarioView;
   );
 }
 
-interface PlanCardProps {
+interface RecordCardProps {
   view: TodayView;
   styles: RankStyle[];
   selected: string;
@@ -314,33 +386,48 @@ interface PlanCardProps {
   onSimulate?: () => void;
 }
 
-function PlanCard({ view, styles, selected, onPick, onSimulate }: PlanCardProps) {
+/** Every scenario played today, most recent first. */
+function RecordCard({ view, styles, selected, onPick, onSimulate }: RecordCardProps) {
   return (
-    <section className="card plan-card">
+    <section className="card record-card">
       <div className="card__head" style={{ padding: "0 6px 8px" }}>
-        <h3 className="card__title">今日计划</h3>
-        <span className="mono small muted">
-          {view.totals.doneScenarios} / {view.totals.plannedScenarios}
-        </span>
+        <h3 className="card__title">今日记录</h3>
+        <span className="mono small muted">{view.totals.playedScenarios} 个场景</span>
       </div>
-      {view.scenarios.map((scenario) => {
-        const style = rankStyleAt(styles, scenario.rank.index);
-        const isSelected = scenario.name === selected;
-        return (
-          <button key={scenario.name} className={isSelected ? "plan-item is-selected" : "plan-item"} aria-pressed={isSelected} onClick={() => onPick(scenario.name)}>
-            <ProgressRing fraction={scenario.countedRuns / scenario.targetRuns} color={style.ink} />
-            <span className="plan-item__text">
-              <span className="plan-item__name">{scenario.name}</span>
-              <span className="small muted">
-                {scenario.subcategory} · <span style={{ color: style.ink }}>{scenario.rank.name}</span>
+      {view.played.length ? (
+        view.played.map((scenario) => {
+          const bestStyle = rankStyleAt(styles, scenario.todayBest === null ? -1 : rankIndexForScore(scenario.todayBest, scenario.thresholds));
+          const isSelected = scenario.name === selected;
+          const line = bestLine(scenario);
+          return (
+            <button key={scenario.name} className={isSelected ? "record-item is-selected" : "record-item"} aria-pressed={isSelected} onClick={() => onPick(scenario.name)}>
+              <span className="record-item__bar" style={{ background: bestStyle.ink }} aria-hidden="true" />
+              <span className="record-item__text">
+                <span className="record-item__name">{scenario.name}</span>
+                <span className="small muted">
+                  {scenario.countedRuns} 局 · <LegendDiamond /> 均 <span className="mono">{fmtScore(scenario.todayAverage)}</span>
+                </span>
               </span>
-            </span>
-            <span className="mono small" style={{ color: scenario.done ? "var(--accent)" : "var(--muted)" }}>
-              {scenario.countedRuns}/{scenario.targetRuns}
-            </span>
-          </button>
-        );
-      })}
+              <span className="record-item__best">
+                <span className="mono" style={{ fontSize: 15, fontWeight: 600, color: bestStyle.ink }}>
+                  {fmtScore(scenario.todayBest)}
+                </span>
+                {scenario.newPersonalBest ? (
+                  <span className="record-item__pb">PB +{fmtScore(scenario.personalBestGain)}</span>
+                ) : (
+                  <span className="small muted" title={line.text}>
+                    {scenario.previousBest !== null && scenario.todayBest !== null ? `PB ${fmtScore(scenario.previousBest)}` : " "}
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })
+      ) : (
+        <span className="small muted" style={{ padding: "4px 6px 8px" }}>
+          今天还没打 benchmark 场景。打开 KovaaK 打一局，成绩会自动出现在这里。
+        </span>
+      )}
       {onSimulate ? (
         <button className="plan-simulate" onClick={onSimulate}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>模拟：在游戏里打完一局</span>
@@ -364,8 +451,9 @@ function SuggestionCard({ scenario, styles, onPick }: { scenario: TodayScenarioV
         {scenario.name}
       </span>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#2B4A53" }}>
-        今天 {scenario.countedRuns}/{scenario.targetRuns} 局，<span style={{ color: style.ink, fontWeight: 600 }}>{scenario.rank.name}</span>
-        {scenario.rank.index >= 0 ? <span className="in-rank"> 段内 {fmtPercent(scenario.rank.inRank)}</span> : null}，是计划里段位最低的。
+        <span style={{ color: style.ink, fontWeight: 600 }}>{scenario.rank.name}</span>
+        {scenario.rank.index >= 0 ? <span className="in-rank"> 段内 {fmtPercent(scenario.rank.inRank)}</span> : null}，
+        {scenario.runs.length ? "是这个 benchmark 里段位最低的场景。" : "今天还没练，是还没练的场景里段位最低的。"}
       </p>
       <button className="btn-primary" onClick={onPick}>
         切换到这个场景

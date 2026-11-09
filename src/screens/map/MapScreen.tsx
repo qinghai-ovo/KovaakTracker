@@ -3,8 +3,8 @@ import type { StableWindow } from "../../domain/metrics.ts";
 import { trainingWeekRange } from "../../domain/day.ts";
 import { sameScenario } from "../../domain/scenario.ts";
 import type { MapCategoryView, MapScenarioView } from "../../domain/screens/map.ts";
-import { useMapView, useRankStyles, useScreenInput, useSnapshot, useTrackerData } from "../../app/data.tsx";
-import { navigate } from "../../app/router.ts";
+import { useMapView, useRankStyles, useScreenInput, useSnapshot } from "../../app/data.tsx";
+import { navigate, routeHref } from "../../app/router.ts";
 import { LegendDot, RankLadder, RankPalette } from "../../ui/RankBars.tsx";
 import { deltaColor, fmtPercent, fmtScore, fmtShortDay, fmtSignedPercent } from "../../ui/format.ts";
 import { rankStyleAt, type RankStyle } from "../../ui/rankStyle.ts";
@@ -13,7 +13,6 @@ import "./map.css";
 const STABLE_LABEL: Record<StableWindow, string> = { last10: "近 10 局均分", last20: "近 20 局均分", week: "本周均分" };
 
 export function MapScreen({ selectedName }: { selectedName: string | null }) {
-  const data = useTrackerData();
   const snapshot = useSnapshot();
   const input = useScreenInput(snapshot);
   const styles = useRankStyles(snapshot);
@@ -22,7 +21,6 @@ export function MapScreen({ selectedName }: { selectedName: string | null }) {
   const selected = rows.find((row) => selectedName && sameScenario(row.name, selectedName)) ?? view.insights.closestRankUp ?? rows[0];
   const week = trainingWeekRange(snapshot.now, snapshot.settings.dayStartHour);
   const stableLabel = STABLE_LABEL[snapshot.settings.stableWindow];
-  const inPlan = (name: string) => snapshot.plan.some((item) => sameScenario(item.scenarioName, name));
 
   return (
     <>
@@ -61,8 +59,6 @@ export function MapScreen({ selectedName }: { selectedName: string | null }) {
             scenario={selected}
             styles={styles}
             stableLabel={stableLabel}
-            inPlan={inPlan(selected.name)}
-            onAddToPlan={() => data.addToPlan(selected.name)}
           />
         ) : null}
       </div>
@@ -190,11 +186,9 @@ interface ScenarioDetailProps {
   scenario: MapScenarioView;
   styles: RankStyle[];
   stableLabel: string;
-  inPlan: boolean;
-  onAddToPlan: () => void;
 }
 
-function ScenarioDetail({ scenario, styles, stableLabel, inPlan, onAddToPlan }: ScenarioDetailProps) {
+function ScenarioDetail({ scenario, styles, stableLabel }: ScenarioDetailProps) {
   const rankStyle = rankStyleAt(styles, scenario.rank.index);
   const stableIndex = scenario.stable === null ? -2 : scenario.thresholds.filter((threshold) => scenario.stable! >= threshold).length - 1;
   const stats: Array<[string, string, string]> = [
@@ -278,9 +272,9 @@ function ScenarioDetail({ scenario, styles, stableLabel, inPlan, onAddToPlan }: 
           .reverse()}
       </div>
 
-      <button className="btn-primary" onClick={onAddToPlan} disabled={inPlan}>
-        {inPlan ? "已在今日计划里" : "加入今日计划"}
-      </button>
+      <a className="btn-primary" href={routeHref("today", scenario.name)}>
+        在今天页查看
+      </a>
     </aside>
   );
 }

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { StableWindow } from "../../domain/metrics.ts";
 import type { SuspiciousPolicy } from "../../domain/exclusions.ts";
-import type { OverallRankRule } from "../../domain/category.ts";
 import type { SetupProfile } from "../../domain/types.ts";
 import { useSnapshot, useTrackerData } from "../../app/data.tsx";
 import { trackedId } from "../../data/trackerData.ts";
@@ -169,17 +168,6 @@ export function SettingsScreen() {
                 { value: "warn", label: "只提醒" },
               ]}
               onChange={(suspiciousPolicy) => data.updateSettings({ suspiciousPolicy })}
-            />
-          </SettingRow>
-          <SettingRow label="综合段位" help="侧栏里的综合段位怎么从各分类段位算出来">
-            <Segmented<OverallRankRule>
-              label="综合段位"
-              value={settings.overallRankRule}
-              options={[
-                { value: "weakest", label: "按最弱分类" },
-                { value: "average", label: "按平均" },
-              ]}
-              onChange={(overallRankRule) => data.updateSettings({ overallRankRule })}
             />
           </SettingRow>
         </SettingsSection>

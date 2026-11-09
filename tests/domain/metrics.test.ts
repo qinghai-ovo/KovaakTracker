@@ -45,8 +45,10 @@ test("category and overall rank positions", () => {
   assert.equal(category.index, 2);
   assert.ok(Math.abs(category.inRank - 0.6) < 1e-6);
   assert.equal(categoryRankPosition([], 9).index, -1);
-  assert.equal(overallRankPosition([40, 80], 9, "weakest").index, 2);
-  assert.equal(overallRankPosition([40, 80], 9, "average").index, 4);
+  // Overall rank, as on KovaaK's benchmark page: average progress over every scenario.
+  assert.equal(overallRankPosition([40, 80], 9).index, 4);
+  assert.equal(overallRankPosition([0, 0, 90], 9).index, 1, "unplayed scenarios count as 0");
+  assert.equal(overallRankPosition([], 9).index, -1);
 });
 
 test("weekly averages for the sparkline, oldest first", () => {

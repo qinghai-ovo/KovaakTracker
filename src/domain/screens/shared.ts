@@ -2,7 +2,6 @@ import { buildRecordExclusions, countsTowardMetrics, recordKey, type SuspiciousP
 import { DEFAULT_DAY_START_HOUR } from "../day.ts";
 import { chronological, personalBest, stableLevel, type StableWindow } from "../metrics.ts";
 import { pointsToNextRank, progressPercentForScore, rankPositionForScore, rankPositionFromProgress, type RankPosition } from "../rank.ts";
-import type { OverallRankRule } from "../category.ts";
 import type { BenchmarkScenario, RecordExclusion, ScoreRecord } from "../types.ts";
 
 export const UNRANKED_NAME = "未定级";
@@ -12,14 +11,12 @@ export interface ScreenSettings {
   dayStartHour: number;
   stableWindow: StableWindow;
   suspiciousPolicy: SuspiciousPolicy;
-  overallRankRule: OverallRankRule;
 }
 
 export const defaultScreenSettings: ScreenSettings = {
   dayStartHour: DEFAULT_DAY_START_HOUR,
   stableWindow: "last10",
   suspiciousPolicy: "ignore",
-  overallRankRule: "weakest",
 };
 
 export interface ScreenInput {
